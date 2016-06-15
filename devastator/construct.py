@@ -12,6 +12,7 @@ with open(os.path.join(folder, '..', '..', 'cybertron.py')) as file: cybertron=e
 
 constructicons={constructicons}
 urls={urls}
+commits={commits}
 
 def factory(name, command):
 	work_dir=os.path.join('..', 'constructicons', name)
@@ -27,6 +28,7 @@ for i, j in constructicons.items():
 		builder_name=i+'-'+platform
 		builders.append(util.BuilderConfig(
 			name=builder_name,
+			description=commits[i],
 			slavenames=[k[0] for k in cybertron['slaves'].items() if k[1]['platform']==platform],
 			factory=factory(i, j['command']),
 		))
@@ -53,26 +55,39 @@ BuildmasterConfig={{
 		stopChange=True,
 		showUsersPage=True
 	))],
-	'title': 'devastator',
+	'title': 'devastator {commit}',
 }}
 '''
+
+import os; folder=os.path.realpath(os.path.dirname(__file__))
+import sys; sys.path.append(os.path.join(folder, '..'))
+
+import common
 
 import glob, os, subprocess
 
 os.chdir('constructicons')
 constructicons={}
 urls={}
+commits={}
 for i in glob.glob(os.path.join('*', 'constructicon.py')):
 	name=os.path.split(i)[0]
 	with open(i) as file: constructicons[name]=eval(file.read())
 	os.chdir(name)
-	urls[name]=subprocess.check_output('git config --get remote.origin.url').strip()
+	urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
+	commits[name]=common.commit()
+	print('constructing constructicon - commit: {}, repo: {} '.format(commits[name], name))
 	os.chdir('..')
 os.chdir('..')
 
 if not os.path.exists('master'): os.makedirs('master')
 os.chdir('master')
 
-with open('master.cfg', 'w') as file: file.write(template.format(constructicons=constructicons, urls=urls))
+with open('master.cfg', 'w') as file: file.write(template.format(
+	constructicons=constructicons,
+	urls=urls,
+	commits=commits,
+	commit=common.commit()
+))
 
 subprocess.check_call('buildbot create-master', shell=True)
