@@ -11,7 +11,3 @@ The constructicons combine into the devastator. In particular, constructicons co
 Maintainers describe the system to the megatron and devastator via cybertron.py, a Python script that goes in the root of this repo. It contains one dictionary, specifying things like network ports and slave descriptions.
 
 Users describe their constructicon via constructicon.py, a Python script that goes in the root of their repo. It contains one dictionary, specifying things like desired platforms and what command to use to build.
-
-todo
-----
-What happens when megatron restarts devastator while a constructicon is building?
