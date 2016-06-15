@@ -8,8 +8,17 @@ megatron_slave_path=os.path.join('megatron', 'slave')
 devastator_master_path=os.path.join('devastator', 'master')
 devastator_slave_path=os.path.join('devastator', 'slave')
 
+class Cybertron:
+	def __init__(self): self.contents=None
+
+	def __getitem__(self, key):
+		if not self.contents:
+			with open('cybertron.py') as file: self.contents=eval(file.read())
+		return self.contents[key]
+
+cybertron=Cybertron()
+
 def m1(args):
-	with open('cybertron.py') as file: cybertron=eval(file.read())
 	subprocess.check_call('buildbot create-master -r {}'.format(megatron_master_path), shell=True)
 	subprocess.check_call('buildslave create-slave -r {} localhost:{} megatron-slave {}'.format(
 		megatron_slave_path,
@@ -24,11 +33,13 @@ def m0(args):
 	subprocess.check_call('buildslave stop {}'.format(megatron_slave_path), shell=True)
 	subprocess.check_call('buildbot stop {}'.format(devastator_master_path), shell=True)
 
+def mb(args):
+	webbrowser.open('http://localhost:{}'.format(cybertron['megatron_master_port']))
+
 def mc(args):
 	subprocess.check_call('buildbot checkconfig {}'.format(megatron_master_path), shell=True)
 
 def d1(args):
-	with open('cybertron.py') as file: cybertron=eval(file.read())
 	subprocess.check_call('buildslave create-slave -r {} localhost:{} {} {}'.format(
 		devastator_slave_path,
 		cybertron['devastator_slave_port'],
@@ -39,6 +50,9 @@ def d1(args):
 
 def d0(args):
 	subprocess.check_call('buildslave stop {}'.format(devastator_slave_path), shell=True)
+
+def db(args):
+	webbrowser.open('http://localhost:{}'.format(cybertron['devastator_master_port']))
 
 def example(args):
 	if os.path.exists('cybertron.py'): print('cybertron.py already exists, using it.')
@@ -83,11 +97,13 @@ parser=argparse.ArgumentParser()
 subparsers=parser.add_subparsers()
 subparsers.add_parser('m1', help='megatron start').set_defaults(func=m1)
 subparsers.add_parser('m0', help='megatron stop' ).set_defaults(func=m0)
+subparsers.add_parser('mb', help='megatron browser').set_defaults(func=mb)
 subparsers.add_parser('mc', help='megatron check').set_defaults(func=mc)
 parser_d1=subparsers.add_parser('d1', help='devastator start')
 parser_d1.set_defaults(func=d1)
 parser_d1.add_argument('devastator_slave_name')
 subparsers.add_parser('d0', help='devastator stop').set_defaults(func=d0)
+subparsers.add_parser('db', help='devastator browser').set_defaults(func=db)
 subparsers.add_parser('example', help='run example').set_defaults(func=example)
 args=parser.parse_args()
 args.func(args)
