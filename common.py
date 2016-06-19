@@ -7,4 +7,11 @@ def repo_url_to_name(repo_url):
 	if name.endswith('.git'): name=name[:-4]
 	return name
 
-def commit(): return subprocess.check_output('git rev-parse HEAD', shell=True).strip()
+def git_state():
+	result=subprocess.check_output('git rev-parse HEAD', shell=True).strip()
+	if(
+		subprocess.check_output('git diff'         , shell=True).strip()
+		or
+		subprocess.check_output('git diff --cached', shell=True).strip()
+	): result+=' with diff'
+	return result

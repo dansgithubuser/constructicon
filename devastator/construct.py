@@ -12,12 +12,12 @@ with open(os.path.join(folder, '..', '..', 'cybertron.py')) as file: cybertron=e
 
 constructicons={constructicons}
 urls={urls}
-commits={commits}
+git_states={git_states}
 
-def error(builders, scheds, name, commit, message):
+def error(builders, scheds, name, git_state, message):
 	builders.append(util.BuilderConfig(
 		name=name,
-		description=commit+' error: '+message,
+		description=git_state+' error: '+message,
 		slavenames=['none'],
 		factory=util.BuildFactory()
 	))
@@ -30,6 +30,7 @@ def factory(name, command):
 	work_dir=os.path.join('..', 'constructicons', name)
 	result=util.BuildFactory()
 	result.addSteps([
+		steps.SetProperty(property='git_state', value='{git_state}'),
 		steps.Git(repourl=urls[name], workdir=work_dir),
 		steps.ShellCommand(command=command, workdir=work_dir),
 	])
@@ -38,21 +39,21 @@ def factory(name, command):
 builders=[]
 scheds=[]
 for constructicon_name, constructicon_spec in constructicons.items():
-	commit=commits[constructicon_name]
+	git_state=git_states[constructicon_name]
 	if type(constructicon_spec)!=dict:
-		error(builders, scheds, constructicon_name, commit, 'constructicon.py is not a dict')
+		error(builders, scheds, constructicon_name, git_state, 'constructicon.py is not a dict')
 		continue
 	for builder_name, builder_spec in constructicon_spec.items():
 		if type(builder_name)!=str:
-			error(builders, scheds, constructicon_name, commit, 'builder name is not a str')
+			error(builders, scheds, constructicon_name, git_state, 'builder name is not a str')
 			continue
 		builder_name=constructicon_name+'-'+builder_name
 		if type(builder_spec)!=dict:
-			error(builders, scheds, builder_name, commit, 'builder spec is not a dict')
+			error(builders, scheds, builder_name, git_state, 'builder spec is not a dict')
 			continue
 		features=builder_spec.get('features', {{}})
 		if type(features)!=dict:
-			error(builders, scheds, builder_name, commit, 'features is not a dict')
+			error(builders, scheds, builder_name, git_state, 'features is not a dict')
 			continue
 		slave_names=[]
 		for slave_name, slave_features in cybertron['slaves'].items():
@@ -61,20 +62,20 @@ for constructicon_name, constructicon_spec in constructicons.items():
 				if slave_features[feature]!=value: break
 			else: slave_names.append(slave_name)
 		if not len(slave_names):
-			error(builders, scheds, builder_name, commit, 'no matching slaves')
+			error(builders, scheds, builder_name, git_state, 'no matching slaves')
 			continue
 		if 'command' not in builder_spec:
-			error(builders, scheds, builder_name, commit, 'no command')
+			error(builders, scheds, builder_name, git_state, 'no command')
 			continue
 		if type(builder_spec['command'])!=list:
-			error(builders, scheds, builder_name, commit, 'command is not a list')
+			error(builders, scheds, builder_name, git_state, 'command is not a list')
 			continue
 		if any([type(j)!=str for j in builder_spec['command']]):
-			error(builders, scheds, builder_name, commit, 'command is not a list of str')
+			error(builders, scheds, builder_name, git_state, 'command is not a list of str')
 			continue
 		builders.append(util.BuilderConfig(
 			name=builder_name,
-			description=commit,
+			description=git_state,
 			slavenames=slave_names,
 			factory=factory(constructicon_name, builder_spec['command']),
 		))
@@ -101,7 +102,7 @@ BuildmasterConfig={{
 		stopChange=True,
 		showUsersPage=True
 	))],
-	'title': 'devastator {commit}',
+	'title': 'devastator {git_state}',
 }}
 '''
 
@@ -115,7 +116,7 @@ import glob, os, subprocess
 os.chdir('constructicons')
 constructicons={}
 urls={}
-commits={}
+git_states={}
 g=glob.glob(os.path.join('*', 'constructicon.py'))
 assert len(g)
 for i in g:
@@ -123,8 +124,8 @@ for i in g:
 	with open(i) as file: constructicons[name]=eval(file.read())
 	os.chdir(name)
 	urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
-	commits[name]=common.commit()
-	print('constructing constructicon - commit: {}, repo: {} '.format(commits[name], name))
+	git_states[name]=common.git_state()
+	print('constructing constructicon - commit: {}, repo: {} '.format(git_states[name], name))
 	os.chdir('..')
 os.chdir('..')
 
@@ -134,8 +135,8 @@ os.chdir('master')
 with open('master.cfg', 'w') as file: file.write(template.format(
 	constructicons=constructicons,
 	urls=urls,
-	commits=commits,
-	commit=common.commit()
+	git_states=git_states,
+	git_state=common.git_state()
 ))
 
 subprocess.check_call('buildbot create-master', shell=True)
