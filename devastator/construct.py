@@ -14,23 +14,69 @@ constructicons={constructicons}
 urls={urls}
 commits={commits}
 
+def error(builders, scheds, name, commit, message):
+	builders.append(util.BuilderConfig(
+		name=name,
+		description=commit+' error: '+message,
+		slavenames=['none'],
+		factory=util.BuildFactory()
+	))
+	scheds.append(schedulers.ForceScheduler(
+		name=name+'-force',
+		builderNames=[name],
+	))
+
 def factory(name, command):
 	work_dir=os.path.join('..', 'constructicons', name)
 	result=util.BuildFactory()
-	result.addStep(steps.Git(repourl=urls[name], workdir=work_dir))
-	result.addStep(steps.ShellCommand(command=command, workdir=work_dir))
+	result.addSteps([
+		steps.Git(repourl=urls[name], workdir=work_dir),
+		steps.ShellCommand(command=command, workdir=work_dir),
+	])
 	return result
 
 builders=[]
 scheds=[]
-for i, j in constructicons.items():
-	for platform in j['platforms']:
-		builder_name=i+'-'+platform
+for constructicon_name, constructicon_spec in constructicons.items():
+	commit=commits[constructicon_name]
+	if type(constructicon_spec)!=dict:
+		error(builders, scheds, constructicon_name, commit, 'constructicon.py is not a dict')
+		continue
+	for builder_name, builder_spec in constructicon_spec.items():
+		if type(builder_name)!=str:
+			error(builders, scheds, constructicon_name, commit, 'builder name is not a str')
+			continue
+		builder_name=constructicon_name+'-'+builder_name
+		if type(builder_spec)!=dict:
+			error(builders, scheds, builder_name, commit, 'builder spec is not a dict')
+			continue
+		features=builder_spec.get('features', {{}})
+		if type(features)!=dict:
+			error(builders, scheds, builder_name, commit, 'features is not a dict')
+			continue
+		slave_names=[]
+		for slave_name, slave_features in cybertron['slaves'].items():
+			for feature, value in features.items():
+				if feature not in slave_features: break
+				if slave_features[feature]!=value: break
+			else: slave_names.append(slave_name)
+		if not len(slave_names):
+			error(builders, scheds, builder_name, commit, 'no matching slaves')
+			continue
+		if 'command' not in builder_spec:
+			error(builders, scheds, builder_name, commit, 'no command')
+			continue
+		if type(builder_spec['command'])!=list:
+			error(builders, scheds, builder_name, commit, 'command is not a list')
+			continue
+		if any([type(j)!=str for j in builder_spec['command']]):
+			error(builders, scheds, builder_name, commit, 'command is not a list of str')
+			continue
 		builders.append(util.BuilderConfig(
 			name=builder_name,
-			description=commits[i],
-			slavenames=[k[0] for k in cybertron['slaves'].items() if k[1]['platform']==platform],
-			factory=factory(i, j['command']),
+			description=commit,
+			slavenames=slave_names,
+			factory=factory(constructicon_name, builder_spec['command']),
 		))
 		scheds.append(schedulers.ForceScheduler(
 			name=builder_name+'-force',
@@ -39,7 +85,7 @@ for i, j in constructicons.items():
 
 BuildmasterConfig={{
 	'db': {{'db_url': 'sqlite:///state.sqlite'}},
-	'slaves': [buildslave.BuildSlave(i, common.password) for i in cybertron['slaves'].keys()],
+	'slaves': [buildslave.BuildSlave(i, common.password) for i in cybertron['slaves'].keys()+['none']],
 	'protocols': {{'pb': {{'port': cybertron['devastator_slave_port']}}}},
 	'builders': builders,
 	'schedulers': scheds,
@@ -70,7 +116,9 @@ os.chdir('constructicons')
 constructicons={}
 urls={}
 commits={}
-for i in glob.glob(os.path.join('*', 'constructicon.py')):
+g=glob.glob(os.path.join('*', 'constructicon.py'))
+assert len(g)
+for i in g:
 	name=os.path.split(i)[0]
 	with open(i) as file: constructicons[name]=eval(file.read())
 	os.chdir(name)

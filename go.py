@@ -67,7 +67,7 @@ def example(args):
 			'devastator_master_port': 9122,
 			'devastator_slave_port': 9123,
 		}
-		with open('cybertron.py', 'w') as file: file.write(str(cybertron))
+		with open('cybertron.py', 'w') as file: file.write(pprint.pformat(cybertron))
 	print("When you hit enter, I'll start a megatron and open a browser to it.")
 	print("Wait for the megatron master to start.")
 	print("When it has, request a build with repo URL set to https://github.com/dansgithubuser/constructicon")
@@ -85,7 +85,7 @@ def example(args):
 	print("Request a build from the constructicon builder, and it should print out this script's help.")
 	print("When you're done that, hit enter again to clean up and quit.")
 	input()
-	webbrowser.open('http://localhost:9122/builders/constructicon-linux')
+	webbrowser.open('http://localhost:9122/builders/constructicon-help-linux')
 	d=subprocess.Popen('python go.py d1 slave1', shell=True)
 	input()
 	m.kill()
