@@ -19,8 +19,8 @@ class Cybertron:
 cybertron=Cybertron()
 
 def m1(args):
-	subprocess.check_call('buildbot create-master -r {}'.format(megatron_master_path), shell=True)
-	subprocess.check_call('buildslave create-slave -r {} localhost:{} megatron-slave {}'.format(
+	subprocess.check_call('buildbot create-master {}'.format(megatron_master_path), shell=True)
+	subprocess.check_call('buildslave create-slave {} localhost:{} megatron-slave {}'.format(
 		megatron_slave_path,
 		cybertron['megatron_slave_port'],
 		common.password
@@ -40,7 +40,7 @@ def mc(args):
 	subprocess.check_call('buildbot checkconfig {}'.format(megatron_master_path), shell=True)
 
 def d1(args):
-	subprocess.check_call('buildslave create-slave -r {} localhost:{} {} {}'.format(
+	subprocess.check_call('buildslave create-slave {} localhost:{} {} {}'.format(
 		devastator_slave_path,
 		cybertron['devastator_slave_port'],
 		args.devastator_slave_name,
