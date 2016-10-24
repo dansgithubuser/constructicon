@@ -1,4 +1,5 @@
-template='''
+template='''#construct.py is called by megatron builder to create a devastator master.cfg
+
 import os; folder=os.path.realpath(os.path.dirname(__file__))
 import sys; sys.path.append(os.path.join(folder, '..', '..'))
 
@@ -26,7 +27,7 @@ def error(builders, scheds, name, git_state, message):
 		builderNames=[name],
 	))
 
-def factory(name, command):
+def factory(name, builder_name, command, upload):
 	work_dir=os.path.join('..', 'constructicons', name)
 	result=util.BuildFactory()
 	result.addSteps([
@@ -34,6 +35,25 @@ def factory(name, command):
 		steps.Git(repourl=urls[name], workdir=work_dir),
 		steps.ShellCommand(command=command, workdir=work_dir),
 	])
+	for i, j in upload.items():
+		@util.renderer
+		def master_dest(properties):
+			return os.path.join(builder_name, str(properties['buildnumber'])+'-constructicon', j)
+		devastator_file_server_port=cybertron['devastator_file_server_port']
+		@util.renderer
+		def url(properties):
+			return (
+				'http://{devastator_host}:'+str(devastator_file_server_port)
+				+
+				'/'+builder_name+'/'+str(properties['buildnumber'])+'-constructicon'+'/'+j
+			)
+		step=steps.FileUpload(
+			slavesrc=i,
+			masterdest=master_dest,
+			url=url,
+			workdir=work_dir
+		)
+		result.addStep(step)
 	return result
 
 builders=[]
@@ -67,17 +87,21 @@ for constructicon_name, constructicon_spec in constructicons.items():
 		if 'command' not in builder_spec:
 			error(builders, scheds, builder_name, git_state, 'no command')
 			continue
-		if type(builder_spec['command'])!=list:
-			error(builders, scheds, builder_name, git_state, 'command is not a list')
-			continue
-		if any([type(j)!=str for j in builder_spec['command']]):
+		if type(builder_spec['command'])!=list or any([type(i)!=str for i in builder_spec['command']]):
 			error(builders, scheds, builder_name, git_state, 'command is not a list of str')
+			continue
+		if 'upload' not in builder_spec: builder_spec['upload']={{}}
+		if type(builder_spec['upload'])!=dict or any([type(i)!=str or type(j)!=str for i, j in builder_spec['upload'].items()]):
+			error(builders, scheds, builder_name, git_state, 'upload is not a dict of str')
+			continue
+		if any(['..' in j for i, j in builder_spec['upload'].items()]):
+			error(builders, scheds, builder_name, git_state, 'upload destination may not contain ..')
 			continue
 		builders.append(util.BuilderConfig(
 			name=builder_name,
 			description=git_state,
 			slavenames=slave_names,
-			factory=factory(constructicon_name, builder_spec['command']),
+			factory=factory(constructicon_name, builder_name, builder_spec['command'], builder_spec['upload']),
 		))
 		scheds.append(schedulers.ForceScheduler(
 			name=builder_name+'-force',
@@ -111,7 +135,7 @@ import sys; sys.path.append(os.path.join(folder, '..'))
 
 import common
 
-import glob, os, subprocess
+import glob, os, socket, subprocess
 
 os.chdir('constructicons')
 constructicons={}
@@ -136,7 +160,8 @@ with open('master.cfg', 'w') as file: file.write(template.format(
 	constructicons=constructicons,
 	urls=urls,
 	git_states=git_states,
-	git_state=common.git_state()
+	git_state=common.git_state(),
+	devastator_host=socket.gethostbyname(socket.gethostname()),
 ))
 
 subprocess.check_call('buildbot create-master', shell=True)

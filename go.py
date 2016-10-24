@@ -51,10 +51,20 @@ def d1(args):
 def d0(args):
 	subprocess.check_call('buildslave stop {}'.format(devastator_slave_path), shell=True)
 
+def df(args):
+	devastator_file_server_port=cybertron['devastator_file_server_port']
+	os.chdir(devastator_master_path)
+	import SimpleHTTPServer, SocketServer
+	SocketServer.TCPServer(
+		('', devastator_file_server_port),
+		SimpleHTTPServer.SimpleHTTPRequestHandler
+	).serve_forever()
+
 def db(args):
 	webbrowser.open('http://localhost:{}'.format(cybertron['devastator_master_port']))
 
 def example(args):
+	global cybertron
 	if os.path.exists('cybertron.py'): print('cybertron.py already exists, using it.')
 	else:
 		print('Creating example cybertron.py.')
@@ -66,6 +76,7 @@ def example(args):
 			'megatron_slave_port': 9121,
 			'devastator_master_port': 9122,
 			'devastator_slave_port': 9123,
+			'devastator_file_server_port': 9124,
 		}
 		with open('cybertron.py', 'w') as file: file.write(pprint.pformat(cybertron))
 	print("When you hit enter, I'll start a megatron and open a browser to it.")
@@ -77,19 +88,26 @@ def example(args):
 	except: pass
 	input()
 	m=subprocess.Popen('python go.py m1', shell=True)
-	webbrowser.open('http://localhost:9120/builders/megatron-builder')
+	webbrowser.open('http://localhost:{}/builders/megatron-builder'.format(cybertron['megatron_master_port']))
 	input()
 	print("Now, when you hit enter, I'll open a browser to the constructicon builder we just made.")
 	print("I'll also start a devastator slave.")
 	print("Wait for the devastator slave to connect.")
 	print("Request a build from the constructicon builder, and it should print out this script's help.")
-	print("When you're done that, hit enter again to clean up and quit.")
+	print("When you're done that, hit enter again.")
 	input()
-	webbrowser.open('http://localhost:9122/builders/constructicon-help-linux')
+	webbrowser.open('http://localhost:{}/builders/constructicon-help-linux'.format(cybertron['devastator_master_port']))
 	d=subprocess.Popen('python go.py d1 slave1', shell=True)
+	input()
+	print("At the end of that build you just requested, a build result was uploaded from the devastator slave to the devastator master.")
+	print("To allow users to access this file, I'll start a devastator file server.")
+	print("When you're done checking that out, hit enter again to clean up and quit.")
+	input()
+	f=subprocess.Popen('python go.py df', shell=True)
 	input()
 	m.kill()
 	d.kill()
+	f.kill()
 	subprocess.check_output('python go.py m0', shell=True)
 	subprocess.check_output('python go.py d0', shell=True)
 
@@ -103,6 +121,7 @@ parser_d1=subparsers.add_parser('d1', help='devastator start')
 parser_d1.set_defaults(func=d1)
 parser_d1.add_argument('devastator_slave_name')
 subparsers.add_parser('d0', help='devastator stop').set_defaults(func=d0)
+subparsers.add_parser('df', help='devastator file server').set_defaults(func=df)
 subparsers.add_parser('db', help='devastator browser').set_defaults(func=db)
 subparsers.add_parser('example', help='run example').set_defaults(func=example)
 args=parser.parse_args()
