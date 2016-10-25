@@ -142,31 +142,36 @@ import common
 
 import glob, os, socket, subprocess
 
-os.chdir('constructicons')
-constructicons={}
-urls={}
-git_states={}
-g=glob.glob(os.path.join('*', 'constructicon.py'))
-assert len(g)
-for i in g:
-	name=os.path.split(i)[0]
-	with open(i) as file: constructicons[name]=eval(file.read())
-	os.chdir(name)
-	urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
-	git_states[name]=common.git_state()
-	print('constructing constructicon - commit: {}, repo: {} '.format(git_states[name], name))
+def run(constructicons_override={}):
+	#collect information
+	start=os.getcwd()
+	os.chdir(os.path.join(folder, 'constructicons'))
+	constructicons={}
+	urls={}
+	git_states={}
+	g=glob.glob(os.path.join('*', 'constructicon.py'))
+	assert len(g)
+	for i in g:
+		name=os.path.split(i)[0]
+		with open(i) as file: constructicons[name]=eval(file.read())
+		os.chdir(name)
+		urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
+		git_states[name]=common.git_state()
+		print('constructing constructicon - commit: {}, repo: {} '.format(git_states[name], name))
+		os.chdir('..')
+	constructicons.update(constructicons_override)
 	os.chdir('..')
-os.chdir('..')
+	#make master
+	if not os.path.exists('master'): os.makedirs('master')
+	os.chdir('master')
+	with open('master.cfg', 'w') as file: file.write(template.format(
+		constructicons=constructicons,
+		urls=urls,
+		git_states=git_states,
+		git_state=common.git_state(),
+		devastator_host=socket.gethostbyname(socket.gethostname()),
+	))
+	#reset
+	os.chdir(start)
 
-if not os.path.exists('master'): os.makedirs('master')
-os.chdir('master')
-
-with open('master.cfg', 'w') as file: file.write(template.format(
-	constructicons=constructicons,
-	urls=urls,
-	git_states=git_states,
-	git_state=common.git_state(),
-	devastator_host=socket.gethostbyname(socket.gethostname()),
-))
-
-subprocess.check_call('buildbot create-master', shell=True)
+if __name__=='__main__': run()
