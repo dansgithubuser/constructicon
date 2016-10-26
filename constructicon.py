@@ -2,7 +2,7 @@
 {
 	'help-linux': {
 		'features': {'platform': 'linux'},
-		'command': ['python', 'go.py', '-h'],
+		'commands': ['python go.py -h'],
 		'upload': {'readme.md': 'readme-dest.md'},
 	}
 }

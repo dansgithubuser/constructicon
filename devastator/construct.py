@@ -27,14 +27,17 @@ def error(builders, scheds, name, git_state, message):
 		builderNames=[name],
 	))
 
-def factory(name, builder_name, command, upload):
+def factory(name, builder_name, commands, upload):
 	work_dir=os.path.join('..', 'constructicons', name)
 	result=util.BuildFactory()
-	result.addSteps([
-		steps.SetProperty(property='git_state', value='{git_state}'),
-		steps.Git(repourl=urls[name], workdir=work_dir),
-		steps.ShellCommand(command=command, workdir=work_dir),
-	])
+	result.addSteps(
+		[
+			steps.SetProperty(property='git_state', value='{git_state}'),
+			steps.Git(repourl=urls[name], workdir=work_dir),
+		]
+		+
+		[steps.ShellCommand(command=i, workdir=work_dir) for i in commands]
+	)
 	for i, j in upload.items():
 		@util.renderer
 		def master_dest(properties):
@@ -84,11 +87,13 @@ for constructicon_name, constructicon_spec in constructicons.items():
 		if not len(slave_names):
 			error(builders, scheds, builder_name, git_state, 'no matching slaves')
 			continue
-		if 'command' not in builder_spec:
-			error(builders, scheds, builder_name, git_state, 'no command')
+		if 'commands' not in builder_spec:
+			error(builders, scheds, builder_name, git_state, 'no commands')
 			continue
-		if type(builder_spec['command'])!=list or any([type(i)!=str for i in builder_spec['command']]):
-			error(builders, scheds, builder_name, git_state, 'command is not a list of str')
+		commands=builder_spec['commands']
+		def t_or_list_of(t, x): return type(x)==t or type(x)==list and all([type(i)==t for i in x])
+		if any(not t_or_list_of(str, i) for i in commands):
+			error(builders, scheds, builder_name, git_state, 'command is not a str or list of str')
 			continue
 		if 'upload' not in builder_spec: builder_spec['upload']={{}}
 		if type(builder_spec['upload'])!=dict or any([type(i)!=str or type(j)!=str for i, j in builder_spec['upload'].items()]):
@@ -101,7 +106,7 @@ for constructicon_name, constructicon_spec in constructicons.items():
 			name=builder_name,
 			description=git_state,
 			slavenames=slave_names,
-			factory=factory(constructicon_name, builder_name, builder_spec['command'], builder_spec['upload']),
+			factory=factory(constructicon_name, builder_name, commands, builder_spec['upload']),
 		))
 		scheds.append(schedulers.ForceScheduler(
 			name=builder_name+'-force',
