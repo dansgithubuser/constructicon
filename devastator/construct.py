@@ -33,7 +33,7 @@ def factory(name, builder_name, commands, upload):
 	result.addSteps(
 		[
 			steps.SetProperty(property='git_state', value='{git_state}'),
-			steps.Git(repourl=urls[name], workdir=work_dir),
+			steps.Git(repourl=urls[name], workdir=work_dir, mode='full', method='fresh'),
 		]
 		+
 		[steps.ShellCommand(command=i, workdir=work_dir) for i in commands]
