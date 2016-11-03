@@ -12,9 +12,9 @@ from buildbot.schedulers import forcesched
 
 with open(os.path.join(folder, '..', '..', 'cybertron.py')) as file: cybertron=eval(file.read())
 
-constructicons={constructicons}
-urls={urls}
-git_states={git_states}
+global_constructicons={constructicons}
+global_urls={urls}
+global_git_states={git_states}
 
 def error(builders, scheds, name, git_state, message):
 	builders.append(util.BuilderConfig(
@@ -36,8 +36,9 @@ def factory(name, builder_name, deps, commands, upload):
 		return steps.Git(repourl=repo_url, codebase=repo_url, workdir=work_dir, mode='full', method='fresh')
 	result.addSteps(
 		[
-			steps.SetProperty(property='git_state', value='{git_state}'),
-			git_step(urls[name], work_dir),
+			steps.SetProperty(property='devastator_git_state', value='{devastator_git_state}'),
+			steps.SetProperty(property='git_state', value=global_git_states[name]),
+			git_step(global_urls[name], work_dir),
 		]
 		+
 		[git_step(i, os.path.join(work_dir, '..', i.split('/')[-1])) for i in deps]
@@ -67,8 +68,8 @@ def factory(name, builder_name, deps, commands, upload):
 
 builders=[]
 scheds=[]
-for constructicon_name, constructicon_spec in constructicons.items():
-	git_state=git_states[constructicon_name]
+for constructicon_name, constructicon_spec in global_constructicons.items():
+	git_state=global_git_states[constructicon_name]
 	if type(constructicon_spec)!=dict:
 		error(builders, scheds, constructicon_name, git_state, 'constructicon.py is not a dict')
 		continue
@@ -114,11 +115,11 @@ for constructicon_name, constructicon_spec in constructicons.items():
 			continue
 		builders.append(util.BuilderConfig(
 			name=builder_name,
-			description=git_state,
+			description=global_urls[constructicon_name]+' '+git_state,
 			slavenames=slave_names,
 			factory=factory(constructicon_name, builder_name, builder_spec['deps'], commands, builder_spec['upload']),
 		))
-		codebases =[forcesched.CodebaseParameter(codebase=urls[constructicon_name])]
+		codebases =[forcesched.CodebaseParameter(codebase=global_urls[constructicon_name])]
 		codebases+=[forcesched.CodebaseParameter(codebase=i) for i in builder_spec['deps']]
 		scheds.append(schedulers.ForceScheduler(
 			name=builder_name+'-force',
@@ -144,7 +145,7 @@ BuildmasterConfig={{
 		stopChange=True,
 		showUsersPage=True
 	))],
-	'title': 'devastator {git_state}',
+	'title': 'devastator {devastator_git_state}',
 }}
 '''
 
@@ -181,7 +182,7 @@ def run(constructicons_override={}):
 		constructicons=constructicons,
 		urls=urls,
 		git_states=git_states,
-		git_state=common.git_state(),
+		devastator_git_state=common.git_state(),
 		devastator_host=socket.gethostbyname(socket.gethostname()),
 	))
 	#reset
