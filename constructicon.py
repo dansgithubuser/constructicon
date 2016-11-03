@@ -8,4 +8,8 @@
 	'sleep': {
 		'commands': ['python -c "import time; time.sleep(10)"'],
 	},
+	'deps': {
+		'deps': ['https://github.com/dansgithubuser/playground'],
+		'commands': ['python ../playground/timestamp.py'],
+	},
 }

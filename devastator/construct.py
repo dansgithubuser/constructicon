@@ -8,6 +8,7 @@ import common
 from buildbot.plugins import buildslave, schedulers, steps, util
 from buildbot.status import html
 from buildbot.status.web import authz
+from buildbot.schedulers import forcesched
 
 with open(os.path.join(folder, '..', '..', 'cybertron.py')) as file: cybertron=eval(file.read())
 
@@ -27,14 +28,19 @@ def error(builders, scheds, name, git_state, message):
 		builderNames=[name],
 	))
 
-def factory(name, builder_name, commands, upload):
-	work_dir=os.path.join('..', 'constructicons', name)
+def factory(name, builder_name, deps, commands, upload):
+	deps=sorted(deps)
+	work_dir=os.path.join('..', 'constructicons', name, name)
 	result=util.BuildFactory()
+	def git_step(repo_url, work_dir):
+		return steps.Git(repourl=repo_url, codebase=repo_url, workdir=work_dir, mode='full', method='fresh')
 	result.addSteps(
 		[
 			steps.SetProperty(property='git_state', value='{git_state}'),
-			steps.Git(repourl=urls[name], workdir=work_dir, mode='full', method='fresh'),
+			git_step(urls[name], work_dir),
 		]
+		+
+		[git_step(i, os.path.join(work_dir, '..', i.split('/')[-1])) for i in deps]
 		+
 		[steps.ShellCommand(command=i, workdir=work_dir) for i in commands]
 	)
@@ -87,6 +93,10 @@ for constructicon_name, constructicon_spec in constructicons.items():
 		if not len(slave_names):
 			error(builders, scheds, builder_name, git_state, 'no matching slaves')
 			continue
+		if 'deps' not in builder_spec: builder_spec['deps']=[]
+		if any(type(i)!=str for i in builder_spec['deps']):
+			error(builders, scheds, builder_name, git_state, 'deps is not a list of str')
+			continue
 		if 'commands' not in builder_spec:
 			error(builders, scheds, builder_name, git_state, 'no commands')
 			continue
@@ -106,11 +116,14 @@ for constructicon_name, constructicon_spec in constructicons.items():
 			name=builder_name,
 			description=git_state,
 			slavenames=slave_names,
-			factory=factory(constructicon_name, builder_name, commands, builder_spec['upload']),
+			factory=factory(constructicon_name, builder_name, builder_spec['deps'], commands, builder_spec['upload']),
 		))
+		codebases =[forcesched.CodebaseParameter(codebase=urls[constructicon_name])]
+		codebases+=[forcesched.CodebaseParameter(codebase=i) for i in builder_spec['deps']]
 		scheds.append(schedulers.ForceScheduler(
 			name=builder_name+'-force',
 			builderNames=[builder_name],
+			codebases=codebases,
 		))
 
 BuildmasterConfig={{
