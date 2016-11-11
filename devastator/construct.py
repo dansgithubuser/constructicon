@@ -10,11 +10,53 @@ from buildbot.status import html
 from buildbot.status.web import authz
 from buildbot.schedulers import forcesched
 
+import pprint
+
 with open(os.path.join(folder, '..', '..', 'cybertron.py')) as file: cybertron=eval(file.read())
 
 global_constructicons={constructicons}
 global_urls={urls}
 global_git_states={git_states}
+
+class ConfigException(Exception): pass
+
+class Config:
+	@staticmethod
+	def create(x):
+		if type(x)==dict: return Config({{k: Config.create(v) for k, v in x.items()}})
+		elif type(x)==list: return [Config.create(i) for i in x]
+		else: return x
+
+	def __init__(self, dictionary):
+		self.visited=set()
+		self.dictionary=dictionary
+
+	def __getitem__(self, k):
+		self.visited.add(k)
+		return self.dictionary[k]
+
+	def __contains__(self, k): return k in self.dictionary
+
+	def __repr__(self): return 'configuration'+str((self.visited, self.dictionary))
+
+	def get(self, k, default):
+		if k in self.dictionary: return self[k]
+		else: return default
+
+	def items(self, mark_used=True):
+		if mark_used: self.visited=self.dictionary.keys()
+		return self.dictionary.items()
+
+	def unused(self, prefix=[]):
+		result=[prefix+[k] for k in self.dictionary if k not in self.visited]
+		def recurse_list(k, v, f):
+			if type(v)==list:
+				for i in range(len(v)): recurse_list(k+[i], v[i], f)
+			else: f(k, v)
+		def recurse(k, v):
+			if isinstance(v, Config): result.extend(v.unused(k))
+		for k, v in self.dictionary.items(): recurse_list(prefix+[k], v, recurse)
+		return result
 
 def error(builders, scheds, name, git_state, message):
 	builders.append(util.BuilderConfig(
@@ -81,8 +123,9 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if type(builder_spec)!=dict:
 			error(builders, scheds, builder_name, git_state, 'builder spec is not a dict')
 			continue
-		features=builder_spec.get('features', {{}})
-		if type(features)!=dict:
+		builder_spec=Config.create(builder_spec)
+		features=builder_spec.get('features', Config.create({{}}))
+		if not isinstance(features, Config):
 			error(builders, scheds, builder_name, git_state, 'features is not a dict')
 			continue
 		slave_names=[]
@@ -94,8 +137,8 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if not len(slave_names):
 			error(builders, scheds, builder_name, git_state, 'no matching slaves')
 			continue
-		if 'deps' not in builder_spec: builder_spec['deps']=[]
-		if any(type(i)!=str for i in builder_spec['deps']):
+		deps=builder_spec.get('deps', [])
+		if any(type(i)!=str for i in deps):
 			error(builders, scheds, builder_name, git_state, 'deps is not a list of str')
 			continue
 		if 'commands' not in builder_spec:
@@ -106,26 +149,30 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if any(not t_or_list_of(str, i) for i in commands):
 			error(builders, scheds, builder_name, git_state, 'command is not a str or list of str')
 			continue
-		if 'upload' not in builder_spec: builder_spec['upload']={{}}
-		if type(builder_spec['upload'])!=dict or any([type(i)!=str or type(j)!=str for i, j in builder_spec['upload'].items()]):
+		upload=builder_spec.get('upload', Config.create({{}}))
+		if not isinstance(upload, Config) or any([type(i)!=str or type(j)!=str for i, j in upload.items(False)]):
 			error(builders, scheds, builder_name, git_state, 'upload is not a dict of str')
 			continue
-		if any(['..' in j for i, j in builder_spec['upload'].items()]):
+		if any(['..' in j for i, j in upload.items()]):
 			error(builders, scheds, builder_name, git_state, 'upload destination may not contain ..')
 			continue
 		builders.append(util.BuilderConfig(
 			name=builder_name,
 			description=global_urls[constructicon_name]+' '+git_state,
 			slavenames=slave_names,
-			factory=factory(constructicon_name, builder_name, builder_spec['deps'], commands, builder_spec['upload']),
+			factory=factory(constructicon_name, builder_name, deps, commands, upload),
 		))
 		codebases =[forcesched.CodebaseParameter(codebase=global_urls[constructicon_name])]
-		codebases+=[forcesched.CodebaseParameter(codebase=i) for i in builder_spec['deps']]
+		codebases+=[forcesched.CodebaseParameter(codebase=i) for i in deps]
 		scheds.append(schedulers.ForceScheduler(
 			name=builder_name+'-force',
 			builderNames=[builder_name],
 			codebases=codebases,
 		))
+		unused=builder_spec.unused()
+		if unused:
+			error(builders, scheds, builder_name, git_state, 'unused configuration keys\\n'+pprint.pformat(unused))
+			continue
 
 BuildmasterConfig={{
 	'db': {{'db_url': 'sqlite:///state.sqlite'}},
