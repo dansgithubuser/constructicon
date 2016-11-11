@@ -221,7 +221,10 @@ def run(constructicons_override={}):
 	assert len(g)
 	for i in g:
 		name=os.path.split(i)[0]
-		with open(i) as file: constructicons[name]=eval(file.read())
+		with open(i) as file:
+			locals={'constructicon': None}
+			exec(file.read(), None, locals)
+			constructicons[name]=locals['constructicon']
 		os.chdir(name)
 		urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
 		git_states[name]=common.git_state()

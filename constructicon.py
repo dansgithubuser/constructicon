@@ -1,5 +1,5 @@
 #used in go.py example and tests
-{
+constructicon={
 	'help-linux': {
 		'features': {'platform': 'linux'},
 		'commands': ['python go.py -h'],
