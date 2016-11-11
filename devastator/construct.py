@@ -116,14 +116,17 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		error(builders, scheds, constructicon_name, git_state, 'constructicon.py is not a dict')
 		continue
 	for builder_name, builder_spec in constructicon_spec.items():
+		#builder name
 		if type(builder_name)!=str:
 			error(builders, scheds, constructicon_name, git_state, 'builder name is not a str')
 			continue
 		builder_name=constructicon_name+'-'+builder_name
+		#builder spec
 		if type(builder_spec)!=dict:
 			error(builders, scheds, builder_name, git_state, 'builder spec is not a dict')
 			continue
 		builder_spec=Config.create(builder_spec)
+		#slave features
 		features=builder_spec.get('features', Config.create({{}}))
 		if not isinstance(features, Config):
 			error(builders, scheds, builder_name, git_state, 'features is not a dict')
@@ -137,10 +140,12 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if not len(slave_names):
 			error(builders, scheds, builder_name, git_state, 'no matching slaves')
 			continue
+		#deps
 		deps=builder_spec.get('deps', [])
 		if any(type(i)!=str for i in deps):
 			error(builders, scheds, builder_name, git_state, 'deps is not a list of str')
 			continue
+		#commands
 		if 'commands' not in builder_spec:
 			error(builders, scheds, builder_name, git_state, 'no commands')
 			continue
@@ -149,6 +154,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if any(not t_or_list_of(str, i) for i in commands):
 			error(builders, scheds, builder_name, git_state, 'command is not a str or list of str')
 			continue
+		#upload
 		upload=builder_spec.get('upload', Config.create({{}}))
 		if not isinstance(upload, Config) or any([type(i)!=str or type(j)!=str for i, j in upload.items(False)]):
 			error(builders, scheds, builder_name, git_state, 'upload is not a dict of str')
@@ -156,6 +162,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if any(['..' in j for i, j in upload.items()]):
 			error(builders, scheds, builder_name, git_state, 'upload destination may not contain ..')
 			continue
+		#append
 		builders.append(util.BuilderConfig(
 			name=builder_name,
 			description=global_urls[constructicon_name]+' '+git_state,
