@@ -58,18 +58,6 @@ class Config:
 		for k, v in self.dictionary.items(): recurse_list(prefix+[k], v, recurse)
 		return result
 
-def error(builders, scheds, name, git_state, message):
-	builders.append(util.BuilderConfig(
-		name=name,
-		description=git_state+' error: '+message,
-		slavenames=['none'],
-		factory=util.BuildFactory()
-	))
-	scheds.append(schedulers.ForceScheduler(
-		name=name+'-force',
-		builderNames=[name],
-	))
-
 def factory(name, builder_name, deps, commands, upload):
 	deps=sorted(deps)
 	work_dir=os.path.join('..', 'constructicons', name, name)
@@ -112,25 +100,34 @@ builders=[]
 scheds=[]
 for constructicon_name, constructicon_spec in global_constructicons.items():
 	git_state=global_git_states[constructicon_name]
+	def error(message):
+		try: name=builder_name
+		except NameError: name=constructicon_name
+		builders.append(util.BuilderConfig(
+			name=name,
+			description=git_state+' error: '+message,
+			slavenames=['none'],
+			factory=util.BuildFactory()
+		))
+		scheds.append(schedulers.ForceScheduler(
+			name=name+'-force',
+			builderNames=[name],
+		))
 	if type(constructicon_spec)!=dict:
-		error(builders, scheds, constructicon_name, git_state, 'constructicon.py is not a dict')
-		continue
+		error('constructicon.py is not a dict'); continue
 	for builder_name, builder_spec in constructicon_spec.items():
 		#builder name
 		if type(builder_name)!=str:
-			error(builders, scheds, constructicon_name, git_state, 'builder name is not a str')
-			continue
+			error('builder name is not a str'); continue
 		builder_name=constructicon_name+'-'+builder_name
 		#builder spec
 		if type(builder_spec)!=dict:
-			error(builders, scheds, builder_name, git_state, 'builder spec is not a dict')
-			continue
+			error('builder spec is not a dict'); continue
 		builder_spec=Config.create(builder_spec)
 		#slave features
 		features=builder_spec.get('features', Config.create({{}}))
 		if not isinstance(features, Config):
-			error(builders, scheds, builder_name, git_state, 'features is not a dict')
-			continue
+			error('features is not a dict'); continue
 		slave_names=[]
 		for slave_name, slave_features in cybertron['slaves'].items():
 			for feature, value in features.items():
@@ -138,30 +135,24 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 				if slave_features[feature]!=value: break
 			else: slave_names.append(slave_name)
 		if not len(slave_names):
-			error(builders, scheds, builder_name, git_state, 'no matching slaves')
-			continue
+			error('no matching slaves'); continue
 		#deps
 		deps=builder_spec.get('deps', [])
 		if any(type(i)!=str for i in deps):
-			error(builders, scheds, builder_name, git_state, 'deps is not a list of str')
-			continue
+			error('deps is not a list of str'); continue
 		#commands
 		if 'commands' not in builder_spec:
-			error(builders, scheds, builder_name, git_state, 'no commands')
-			continue
+			error('no commands'); continue
 		commands=builder_spec['commands']
 		def t_or_list_of(t, x): return type(x)==t or type(x)==list and all([type(i)==t for i in x])
 		if any(not t_or_list_of(str, i) for i in commands):
-			error(builders, scheds, builder_name, git_state, 'command is not a str or list of str')
-			continue
+			error('command is not a str or list of str'); continue
 		#upload
 		upload=builder_spec.get('upload', Config.create({{}}))
 		if not isinstance(upload, Config) or any([type(i)!=str or type(j)!=str for i, j in upload.items(False)]):
-			error(builders, scheds, builder_name, git_state, 'upload is not a dict of str')
-			continue
+			error('upload is not a dict of str'); continue
 		if any(['..' in j for i, j in upload.items()]):
-			error(builders, scheds, builder_name, git_state, 'upload destination may not contain ..')
-			continue
+			error('upload destination may not contain ..'); continue
 		#append
 		builders.append(util.BuilderConfig(
 			name=builder_name,
@@ -178,8 +169,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		))
 		unused=builder_spec.unused()
 		if unused:
-			error(builders, scheds, builder_name, git_state, 'unused configuration keys\\n'+pprint.pformat(unused))
-			continue
+			error('unused configuration keys\\n'+pprint.pformat(unused)); continue
 
 BuildmasterConfig={{
 	'db': {{'db_url': 'sqlite:///state.sqlite'}},
