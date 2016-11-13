@@ -5,14 +5,20 @@ import sys; sys.path.append(os.path.join(folder, '..', '..'))
 
 import common
 
-from buildbot.plugins import buildslave, schedulers, steps, util
+from buildbot.plugins import changes, buildslave, schedulers, steps, util
 from buildbot.status import html
 from buildbot.status.web import authz
 from buildbot.schedulers import forcesched
 
-import pprint
+import calendar, pprint
+
+ForceScheduler=schedulers.ForceScheduler
+Nightly=schedulers.Nightly
+AnyBranchScheduler=schedulers.AnyBranchScheduler
 
 with open(os.path.join(folder, '..', '..', 'cybertron.py')) as file: cybertron=eval(file.read())
+
+parameter_prefix='parameter-'
 
 global_constructicons={{{constructicons}}}
 global_urls={{{urls}}}
@@ -58,12 +64,25 @@ class Config:
 		for k, v in self.dictionary.items(): recurse_list(prefix+[k], v, recurse)
 		return result
 
+def url_to_name(url):
+	r=url.split('/')[-1]
+	if r.endswith('.git'): r=r[:-4]
+	return r
+
 def factory(name, builder_name, deps, commands, upload):
 	deps=sorted(deps)
 	work_dir=os.path.join('..', 'constructicons', name, name)
 	result=util.BuildFactory()
 	def git_step(repo_url, work_dir):
 		return steps.Git(repourl=repo_url, codebase=repo_url, workdir=work_dir, mode='full', method='fresh')
+	def extract_parameters(d):
+		return {i[len(parameter_prefix):]: str(j[0]) for i, j in d.items() if i.startswith(parameter_prefix)}
+	@util.renderer
+	def env(properties): return extract_parameters(properties.asDict())
+	def format(command):
+		@util.renderer
+		def f(properties): return command.format(**extract_parameters(properties.asDict()))
+		return f
 	result.addSteps(
 		[
 			steps.SetProperty(property='devastator_git_state', value='{{{devastator_git_state}}}'),
@@ -71,9 +90,9 @@ def factory(name, builder_name, deps, commands, upload):
 			git_step(global_urls[name], work_dir),
 		]
 		+
-		[git_step(i, os.path.join(work_dir, '..', i.split('/')[-1])) for i in deps]
+		[git_step(i, os.path.join(work_dir, '..', url_to_name(i))) for i in deps]
 		+
-		[steps.ShellCommand(command=i, workdir=work_dir) for i in commands]
+		[steps.ShellCommand(command=format(i), workdir=work_dir, env=env) for i in commands]
 	)
 	for i, j in upload.items():
 		@util.renderer
@@ -96,8 +115,9 @@ def factory(name, builder_name, deps, commands, upload):
 		result.addStep(step)
 	return result
 
-builders=[]
-scheds=[]
+all_builders=[]
+all_schedulers=[]
+all_urls=set(global_urls.values())
 errors=1
 for constructicon_name, constructicon_spec in global_constructicons.items():
 	git_state=global_git_states[constructicon_name]
@@ -107,13 +127,13 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		global errors
 		name+='-uniquifier-{}'.format(errors)
 		errors+=1
-		builders.append(util.BuilderConfig(
+		all_builders.append(util.BuilderConfig(
 			name=name,
 			description=git_state+' error: '+message,
 			slavenames=['none'],
 			factory=util.BuildFactory()
 		))
-		scheds.append(schedulers.ForceScheduler(
+		all_schedulers.append(ForceScheduler(
 			name=name+'-force',
 			builderNames=[name],
 		))
@@ -144,6 +164,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		deps=builder_spec.get('deps', [])
 		if any(type(i)!=str for i in deps):
 			error('deps is not a list of str'); continue
+		all_urls.update(deps)
 		#commands
 		if 'commands' not in builder_spec:
 			error('no commands'); continue
@@ -157,19 +178,58 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			error('upload is not a dict of str'); continue
 		if any(['..' in j for i, j in upload.items()]):
 			error('upload destination may not contain ..'); continue
+		#schedulers
+		schedulers=builder_spec.get('schedulers', Config.create({'force': {'type': 'force'}}))
+		if not isinstance(schedulers, Config):
+			error('schedulers is not a dict'); continue
+		if any([type(i)!=str for i, j in schedulers.items(False)]):
+			error("schedulers has a key that isn't a str"); continue
+		if any([not isinstance(j, Config) for i, j in schedulers.items(False)]):
+			error("schedulers has a value that isn't a dict"); continue
+		if any(['type' not in j for i, j in schedulers.items(False)]):
+			error('a scheduler is missing a type specification'); continue
+		if any([j['type'] not in ['force', 'time', 'commit'] for i, j in schedulers.items(False)]):
+			error('a scheduler has an unknown type specification'); continue
+		for name, spec in schedulers.items():
+			scheduler_args={}
+			#name
+			scheduler_args['name']=builder_name+'-'+name
+			#builderNames
+			scheduler_args['builderNames']=[builder_name]
+			#trigger
+			if spec['type']=='time':
+				scheduler_args['month']=spec.get('month', '*')
+				scheduler_args['dayOfMonth']=spec.get('day-of-month', '*')
+				scheduler_args['dayOfWeek']=spec.get('day-of-week', '*')
+				scheduler_args['hour']=spec.get('hour', 0)
+				scheduler_args['minute']=spec.get('minute', 0)
+				scheduler_args['branch']='master'
+			elif spec['type']=='commit':
+				scheduler_args['change_filter']=util.ChangeFilter(branch_re=spec.get('branch-regex', '.*'))
+			#codebases
+			x=[global_urls[constructicon_name]]+deps
+			if spec['type']=='force':
+				scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=i) for i in x]
+			else:
+				scheduler_args['codebases']={i: {'repository': i} for i in x}
+			#parameters
+			parameters=spec.get('parameters', Config.create({}))
+			if spec['type']=='force':
+				scheduler_args['properties']=[util.StringParameter(name=parameter_prefix+i, default=j) for i, j in parameters.items()]
+			else:
+				scheduler_args['properties']={parameter_prefix+i: str(j) for i, j in parameters.items()}
+			#append
+			all_schedulers.append({
+				'force': ForceScheduler,
+				'time': Nightly,
+				'commit': AnyBranchScheduler
+			}[spec['type']](**scheduler_args))
 		#append
-		builders.append(util.BuilderConfig(
+		all_builders.append(util.BuilderConfig(
 			name=builder_name,
 			description=global_urls[constructicon_name]+' '+git_state,
 			slavenames=slave_names,
 			factory=factory(constructicon_name, builder_name, deps, commands, upload),
-		))
-		codebases =[forcesched.CodebaseParameter(codebase=global_urls[constructicon_name])]
-		codebases+=[forcesched.CodebaseParameter(codebase=i) for i in deps]
-		scheds.append(schedulers.ForceScheduler(
-			name=builder_name+'-force',
-			builderNames=[builder_name],
-			codebases=codebases,
 		))
 		unused=builder_spec.unused()
 		if unused:
@@ -179,8 +239,8 @@ BuildmasterConfig={
 	'db': {'db_url': 'sqlite:///state.sqlite'},
 	'slaves': [buildslave.BuildSlave(i, common.password) for i in cybertron['slaves'].keys()+['none']],
 	'protocols': {'pb': {'port': cybertron['devastator_slave_port']}},
-	'builders': builders,
-	'schedulers': scheds,
+	'builders': all_builders,
+	'schedulers': all_schedulers,
 	'status': [html.WebStatus(cybertron['devastator_master_port'], authz=authz.Authz(
 		view=True,
 		forceBuild=True,
@@ -193,6 +253,8 @@ BuildmasterConfig={
 		stopChange=True,
 		showUsersPage=True
 	))],
+	'codebaseGenerator': lambda chdict: chdict['repository'],
+	'change_source': [changes.GitPoller(repourl=i, branches=True, pollInterval=30) for i in all_urls],
 	'title': 'devastator {{{devastator_git_state}}}',
 }
 '''
