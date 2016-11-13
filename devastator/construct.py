@@ -1,4 +1,4 @@
-template='''#construct.py is called by megatron builder to create a devastator master.cfg
+template=r'''#construct.py is called by megatron builder to create a devastator master.cfg
 
 import os; folder=os.path.realpath(os.path.dirname(__file__))
 import sys; sys.path.append(os.path.join(folder, '..', '..'))
@@ -14,16 +14,16 @@ import pprint
 
 with open(os.path.join(folder, '..', '..', 'cybertron.py')) as file: cybertron=eval(file.read())
 
-global_constructicons={constructicons}
-global_urls={urls}
-global_git_states={git_states}
+global_constructicons={{{constructicons}}}
+global_urls={{{urls}}}
+global_git_states={{{git_states}}}
 
 class ConfigException(Exception): pass
 
 class Config:
 	@staticmethod
 	def create(x):
-		if type(x)==dict: return Config({{k: Config.create(v) for k, v in x.items()}})
+		if type(x)==dict: return Config({k: Config.create(v) for k, v in x.items()})
 		elif type(x)==list: return [Config.create(i) for i in x]
 		else: return x
 
@@ -66,7 +66,7 @@ def factory(name, builder_name, deps, commands, upload):
 		return steps.Git(repourl=repo_url, codebase=repo_url, workdir=work_dir, mode='full', method='fresh')
 	result.addSteps(
 		[
-			steps.SetProperty(property='devastator_git_state', value='{devastator_git_state}'),
+			steps.SetProperty(property='devastator_git_state', value='{{{devastator_git_state}}}'),
 			steps.SetProperty(property='git_state', value=global_git_states[name]),
 			git_step(global_urls[name], work_dir),
 		]
@@ -83,7 +83,7 @@ def factory(name, builder_name, deps, commands, upload):
 		@util.renderer
 		def url(properties):
 			return (
-				'http://{devastator_host}:'+str(devastator_file_server_port)
+				'http://{{{devastator_host}}}:'+str(devastator_file_server_port)
 				+
 				'/'+builder_name+'/'+str(properties['buildnumber'])+'-constructicon'+'/'+j
 			)
@@ -125,7 +125,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			error('builder spec is not a dict'); continue
 		builder_spec=Config.create(builder_spec)
 		#slave features
-		features=builder_spec.get('features', Config.create({{}}))
+		features=builder_spec.get('features', Config.create({}))
 		if not isinstance(features, Config):
 			error('features is not a dict'); continue
 		slave_names=[]
@@ -148,7 +148,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if any(not t_or_list_of(str, i) for i in commands):
 			error('command is not a str or list of str'); continue
 		#upload
-		upload=builder_spec.get('upload', Config.create({{}}))
+		upload=builder_spec.get('upload', Config.create({}))
 		if not isinstance(upload, Config) or any([type(i)!=str or type(j)!=str for i, j in upload.items(False)]):
 			error('upload is not a dict of str'); continue
 		if any(['..' in j for i, j in upload.items()]):
@@ -169,12 +169,12 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		))
 		unused=builder_spec.unused()
 		if unused:
-			error('unused configuration keys\\n'+pprint.pformat(unused)); continue
+			error('unused configuration keys\n'+pprint.pformat(unused)); continue
 
-BuildmasterConfig={{
-	'db': {{'db_url': 'sqlite:///state.sqlite'}},
+BuildmasterConfig={
+	'db': {'db_url': 'sqlite:///state.sqlite'},
 	'slaves': [buildslave.BuildSlave(i, common.password) for i in cybertron['slaves'].keys()+['none']],
-	'protocols': {{'pb': {{'port': cybertron['devastator_slave_port']}}}},
+	'protocols': {'pb': {'port': cybertron['devastator_slave_port']}},
 	'builders': builders,
 	'schedulers': scheds,
 	'status': [html.WebStatus(cybertron['devastator_master_port'], authz=authz.Authz(
@@ -189,8 +189,8 @@ BuildmasterConfig={{
 		stopChange=True,
 		showUsersPage=True
 	))],
-	'title': 'devastator {devastator_git_state}',
-}}
+	'title': 'devastator {{{devastator_git_state}}}',
+}
 '''
 
 import os; folder=os.path.realpath(os.path.dirname(__file__))
@@ -199,6 +199,10 @@ import sys; sys.path.append(os.path.join(folder, '..'))
 import common
 
 import glob, os, socket, subprocess
+
+def render(template, **kwargs):
+	for i, j in kwargs.items(): template=template.replace('{{{'+i+'}}}', str(j))
+	return template
 
 def run(constructicons_override={}):
 	#collect information
@@ -225,7 +229,7 @@ def run(constructicons_override={}):
 	#make master
 	if not os.path.exists('master'): os.makedirs('master')
 	os.chdir('master')
-	with open('master.cfg', 'w') as file: file.write(template.format(
+	with open('master.cfg', 'w') as file: file.write(render(template,
 		constructicons=constructicons,
 		urls=urls,
 		git_states=git_states,
