@@ -98,11 +98,15 @@ def factory(name, builder_name, deps, commands, upload):
 
 builders=[]
 scheds=[]
+errors=1
 for constructicon_name, constructicon_spec in global_constructicons.items():
 	git_state=global_git_states[constructicon_name]
 	def error(message):
 		try: name=builder_name
 		except NameError: name=constructicon_name
+		global errors
+		name+='-uniquifier-{}'.format(errors)
+		errors+=1
 		builders.append(util.BuilderConfig(
 			name=name,
 			description=git_state+' error: '+message,
