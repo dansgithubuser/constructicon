@@ -74,7 +74,13 @@ def factory(name, builder_name, deps, commands, upload):
 	work_dir=os.path.join('..', 'constructicons', name, name)
 	result=util.BuildFactory()
 	def git_step(repo_url, work_dir):
-		return steps.Git(repourl=repo_url, codebase=repo_url, workdir=work_dir, mode='full', method='fresh')
+		return common.sane_step(steps.Git,
+			repourl=repo_url,
+			codebase=repo_url,
+			workdir=work_dir,
+			mode='full',
+			method='fresh',
+		)
 	def extract_parameters(d):
 		return {i[len(parameter_prefix):]: str(j[0]) for i, j in d.items() if i.startswith(parameter_prefix)}
 	@util.renderer
@@ -85,14 +91,24 @@ def factory(name, builder_name, deps, commands, upload):
 		return f
 	result.addSteps(
 		[
-			steps.SetProperty(property='devastator_git_state', value='{{{devastator_git_state}}}'),
-			steps.SetProperty(property='git_state', value=global_git_states[name]),
+			common.sane_step(steps.SetProperty,
+				property='devastator_git_state',
+				value='{{{devastator_git_state}}}',
+			),
+			common.sane_step(steps.SetProperty,
+				property='git_state',
+				value=global_git_states[name],
+			),
 			git_step(global_urls[name], work_dir),
 		]
 		+
 		[git_step(i, os.path.join(work_dir, '..', url_to_name(i))) for i in deps]
 		+
-		[steps.ShellCommand(command=format(i), workdir=work_dir, env=env) for i in commands]
+		[common.sane_step(steps.ShellCommand,
+			command=format(commands[i]),
+			workdir=work_dir,
+			env=env,
+		) for i in range(len(commands))]
 	)
 	for i, j in upload.items():
 		@util.renderer

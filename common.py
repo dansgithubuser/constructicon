@@ -15,3 +15,8 @@ def git_state():
 		subprocess.check_output('git diff --cached', shell=True).strip()
 	): result+=' with diff'
 	return result
+
+def sane_step(Step, **kwargs):
+	if 'haltOnFailure' not in kwargs: kwargs['haltOnFailure']=True
+	if 'warnOnWarnings' not in kwargs: kwargs['warnOnWarnings']=True
+	return Step(**kwargs)
