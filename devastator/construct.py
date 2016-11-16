@@ -271,6 +271,8 @@ BuildmasterConfig={
 	))],
 	'codebaseGenerator': lambda chdict: chdict['repository'],
 	'change_source': [changes.GitPoller(repourl=i, branches=True, pollInterval=30) for i in all_urls],
+	'mergeRequests': False,
+	'debugPassword': 'sesame',
 	'title': 'devastator {{{devastator_git_state}}}',
 }
 '''
