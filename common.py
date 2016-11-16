@@ -20,3 +20,9 @@ def sane_step(Step, **kwargs):
 	if 'haltOnFailure' not in kwargs: kwargs['haltOnFailure']=True
 	if 'warnOnWarnings' not in kwargs: kwargs['warnOnWarnings']=True
 	return Step(**kwargs)
+
+def constructicon(name):
+	with open(name) as file:
+		locals={'constructicon': None}
+		exec(file.read(), None, locals)
+		return locals['constructicon']

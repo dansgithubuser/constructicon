@@ -154,7 +154,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			builderNames=[name],
 		))
 	if type(constructicon_spec)!=dict:
-		error('constructicon.py is not a dict'); continue
+		error('constructicon is not a dict'); continue
 	for builder_name, builder_spec in constructicon_spec.items():
 		#builder name
 		if type(builder_name)!=str:
@@ -299,10 +299,7 @@ def run(constructicons_override={}):
 	assert len(g)
 	for i in g:
 		name=os.path.split(i)[0]
-		with open(i) as file:
-			locals={'constructicon': None}
-			exec(file.read(), None, locals)
-			constructicons[name]=locals['constructicon']
+		constructicons[name]=common.constructicon(i)
 		os.chdir(name)
 		urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
 		git_states[name]=common.git_state()

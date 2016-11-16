@@ -18,7 +18,7 @@ else:
 	from urllib.request import urlopen
 	from urllib.parse import urlencode
 
-import random, string
+import random, re, string
 stamp=''.join(random.choice(string.ascii_lowercase) for i in range(16))
 
 try: input=raw_input
@@ -91,12 +91,11 @@ class Forcer:
 		for line in response:
 			line=str(line)
 			if '<input' in line:
-				import re
 				m=re.search(r"type='([^']*)'.*name='([^']*)'[\s]*value='([^']*)'[\s]*((?:checked)?)", line)
 				if m and (m.group(1)!='checkbox' or m.group(4)): result[m.group(2)]=m.group(3)
 		#get parameters from previous build request
 		if build!=None:
-			root=self._json_request(build)
+			root=self.json_request(build)
 			for i in root['properties']:
 				if i[0] in result:
 					result[i[0]]=i[1]
@@ -133,13 +132,13 @@ class Forcer:
 
 	def get_progress(self):
 		if not hasattr(self, 'requested_build'):
-			root=self._json_request(-1)
+			root=self.json_request(-1)
 			if stamp in root['reason']:
 				self.requested_build=root['number']
 				self.url='{}/builders/{}/builds/{}'.format(self.master, self.builder, root['number'])
 			else: return (False, 'not started')
 		else:
-			root=self._json_request(self.requested_build)
+			root=self.json_request(self.requested_build)
 		if root['results']==None: return (False, 'started')
 		return (True, root['results'])
 
@@ -147,15 +146,18 @@ class Forcer:
 		if hasattr(self, 'url'): return self.url
 		return 'no url, force url was: {}'.format(self.force_url)
 
-	def _json_request(self, build):
+	def json_request_generic(self, suffix):
 		import json
 		try:
-			result=retry(lambda: json.loads(urlopen('{}/json/builders/{}/builds/{}'.format(
-				self.master, self.builder, build
+			result=retry(lambda: json.loads(urlopen('{}/json/{}'.format(
+				self.master, suffix
 			)).read().decode('utf-8')))
 		except:
 			import pdb; pdb.set_trace()
 		return result
+
+	def json_request(self, build):
+		return self.json_request_generic('builders/{}/builds/{}'.format(self.builder, build))
 
 	def _request(self, url, data):
 		headers={'Referer': '{}/builders/{}'.format(self.master, self.builder)}
@@ -272,19 +274,23 @@ def example(args):
 
 def test(args):
 	#setup
+	invoke('python go.py m0')
+	invoke('python go.py d0')
 	m=invoke('python go.py m1', async=True)
-	time.sleep(2)#so the upcoming build doesn't get aborted when the slave restarts...
 	m_forcer=Forcer('localhost', cybertron['megatron_master_port'], 'megatron-builder')
 	m_forcer.force({'constructicon_repo_url': 'https://github.com/dansgithubuser/constructicon', 'reason': 'test setup'})
 	m_forcer.wait()
 	d=invoke('python go.py d1 slave1', async=True)
 	#test
-	if args.name=='reconfig':
+	def expect(condition):
+		if not condition: import pdb; pdb.set_trace()
+	if re.match(args.regex, 'reconfig'):
 		#modify constructicon.py
-		with open('constructicon.py') as file: constructicon=eval(file.read())
+		constructicon=common.constructicon('constructicon.py')
 		constructicon['sleep']['commands'].append('python -c "import time; time.sleep(1)"')
 		os.chdir(os.path.join('devastator', 'constructicons', 'constructicon'))
-		with open('constructicon.py', 'w') as file: file.write(pprint.pformat(constructicon))
+		with open('constructicon.py', 'w') as file:
+			file.write('constructicon='+pprint.pformat(constructicon))
 		invoke('git add -u :/')
 		invoke('git commit -m "test reconfig"')
 		os.chdir(folder)
@@ -296,10 +302,16 @@ def test(args):
 		m_forcer.wait()
 		#request reconfigged build
 		d_forcer.force({'reason': 'test reconfig reconfigged'})
+		while d_forcer.json_request_generic('')['builders']['constructicon-sleep']['state']!='idle': time.sleep(1)
 		#check stuff
-		print('please perform human inspection...')
-		input()
-	else: raise NotImplementedError
+		r=d_forcer.json_request(-1)
+		expect(stamp in r['reason'])
+		expect(r['results']==0)
+		expect(len(r['steps'])==5)
+		r=d_forcer.json_request(-2)
+		expect(stamp in r['reason'])
+		expect(r['results']==0)
+		expect(len(r['steps'])==4)
 	#teardown
 	m.kill()
 	d.kill()
@@ -321,9 +333,9 @@ subparsers.add_parser('dr', help='devastator create/restart/reconfig -- usually 
 subparsers.add_parser('df', help='devastator file server').set_defaults(func=df)
 subparsers.add_parser('db', help='devastator browser').set_defaults(func=db)
 subparsers.add_parser('example', help='run example').set_defaults(func=example)
-subparser=subparsers.add_parser('test', help='run test')
+subparser=subparsers.add_parser('test', help='run tests')
 subparser.set_defaults(func=test)
-subparser.add_argument('name', choices=['reconfig'])
+subparser.add_argument('regex')
 
 args=parser.parse_args()
 args.func(args)
