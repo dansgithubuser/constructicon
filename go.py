@@ -233,7 +233,7 @@ def example(args):
 	else:
 		cybertron.set({
 			'slaves': {
-				'slave1': {'platform': 'linux'},
+				'slave-1': {'platform': 'linux'},
 			},
 			'megatron_master_port': 9120,
 			'megatron_slave_port': 9121,
@@ -256,8 +256,8 @@ def example(args):
 	print("Request a build from the constructicon builder, and it should print out this script's help.")
 	print("When you're done that, hit enter again.")
 	input()
-	webbrowser.open('http://localhost:{}/builders/constructicon-help-linux'.format(cybertron['devastator_master_port']))
-	d=invoke('python go.py d1 slave1', async=True)
+	webbrowser.open('http://localhost:{}/builders/constructicon-basic'.format(cybertron['devastator_master_port']))
+	d=invoke('python go.py d1 slave-1', async=True)
 	input()
 	print("At the end of that build you just requested,")
 	print("a build result was uploaded from the devastator slave to the devastator master.")
@@ -280,7 +280,7 @@ def test(args):
 	m_forcer=Forcer('localhost', cybertron['megatron_master_port'], 'megatron-builder')
 	m_forcer.force({'constructicon_repo_url': 'https://github.com/dansgithubuser/constructicon', 'reason': 'test setup'})
 	m_forcer.wait()
-	d=invoke('python go.py d1 slave1', async=True)
+	d=invoke('python go.py d1 slave-1', async=True)
 	#test
 	def expect(condition):
 		if not condition: import pdb; pdb.set_trace()
@@ -323,15 +323,15 @@ parser=argparse.ArgumentParser()
 subparsers=parser.add_subparsers()
 subparsers.add_parser('m1', help='megatron start').set_defaults(func=m1)
 subparsers.add_parser('m0', help='megatron stop' ).set_defaults(func=m0)
-subparsers.add_parser('mb', help='megatron browser').set_defaults(func=mb)
-subparsers.add_parser('mc', help='megatron check').set_defaults(func=mc)
-subparser=subparsers.add_parser('d1', help='devastator start')
+subparsers.add_parser('mb', help='megatron master browser').set_defaults(func=mb)
+subparsers.add_parser('mc', help='megatron master check').set_defaults(func=mc)
+subparser=subparsers.add_parser('d1', help='devastator slave start')
 subparser.set_defaults(func=d1)
 subparser.add_argument('devastator_slave_name')
-subparsers.add_parser('d0', help='devastator stop').set_defaults(func=d0)
-subparsers.add_parser('dr', help='devastator create/restart/reconfig -- usually called by megatron').set_defaults(func=dr)
+subparsers.add_parser('d0', help='devastator slave stop').set_defaults(func=d0)
+subparsers.add_parser('dr', help='devastator master create/restart/reconfig -- usually called by megatron').set_defaults(func=dr)
 subparsers.add_parser('df', help='devastator file server').set_defaults(func=df)
-subparsers.add_parser('db', help='devastator browser').set_defaults(func=db)
+subparsers.add_parser('db', help='devastator master browser').set_defaults(func=db)
 subparsers.add_parser('example', help='run example').set_defaults(func=example)
 subparser=subparsers.add_parser('test', help='run tests')
 subparser.set_defaults(func=test)

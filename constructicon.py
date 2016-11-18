@@ -1,6 +1,6 @@
 #used in go.py example and tests
 constructicon={
-	'help-linux': {
+	'basic': {
 		'features': {'platform': 'linux'},
 		'commands': ['python go.py -h'],
 		'upload': {'readme.md': 'readme-dest.md'},

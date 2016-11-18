@@ -21,7 +21,7 @@ with open(os.path.join(folder, '..', '..', 'cybertron.py')) as file: cybertron=e
 parameter_prefix='parameter-'
 
 global_constructicons={{{constructicons}}}
-global_urls={{{urls}}}
+global_repo_urls={{{repo_urls}}}
 global_git_states={{{git_states}}}
 
 class ConfigException(Exception): pass
@@ -64,14 +64,14 @@ class Config:
 		for k, v in self.dictionary.items(): recurse_list(prefix+[k], v, recurse)
 		return result
 
-def url_to_name(url):
-	r=url.split('/')[-1]
+def repo_url_to_name(repo_url):
+	r=repo_url.split('/')[-1]
 	if r.endswith('.git'): r=r[:-4]
 	return r
 
-def factory(name, builder_name, deps, commands, upload):
+def factory(constructicon_name, builder_name, deps, commands, upload):
 	deps=sorted(deps)
-	work_dir=os.path.join('..', 'constructicons', name, name)
+	work_dir=os.path.join('..', 'constructicons', constructicon_name, constructicon_name)
 	result=util.BuildFactory()
 	def git_step(repo_url, work_dir):
 		return common.sane_step(steps.Git,
@@ -97,12 +97,12 @@ def factory(name, builder_name, deps, commands, upload):
 			),
 			common.sane_step(steps.SetProperty,
 				property='git_state',
-				value=global_git_states[name],
+				value=global_git_states[constructicon_name],
 			),
-			git_step(global_urls[name], work_dir),
+			git_step(global_repo_urls[constructicon_name], work_dir),
 		]
 		+
-		[git_step(i, os.path.join(work_dir, '..', url_to_name(i))) for i in deps]
+		[git_step(i, os.path.join(work_dir, '..', repo_url_to_name(i))) for i in deps]
 		+
 		[common.sane_step(steps.ShellCommand,
 			command=format(commands[i]),
@@ -133,7 +133,7 @@ def factory(name, builder_name, deps, commands, upload):
 
 all_builders=[]
 all_schedulers=[]
-all_urls=set(global_urls.values())
+all_repo_urls=set(global_repo_urls.values())
 errors=1
 for constructicon_name, constructicon_spec in global_constructicons.items():
 	git_state=global_git_states[constructicon_name]
@@ -180,7 +180,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		deps=builder_spec.get('deps', [])
 		if any(type(i)!=str for i in deps):
 			error('deps is not a list of str'); continue
-		all_urls.update(deps)
+		all_repo_urls.update(deps)
 		#commands
 		if 'commands' not in builder_spec:
 			error('no commands'); continue
@@ -223,7 +223,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			elif spec['type']=='commit':
 				scheduler_args['change_filter']=util.ChangeFilter(branch_re=spec.get('branch-regex', '.*'))
 			#codebases
-			x=[global_urls[constructicon_name]]+deps
+			x=[global_repo_urls[constructicon_name]]+deps
 			if spec['type']=='force':
 				scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=i) for i in x]
 			else:
@@ -243,7 +243,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		#append
 		all_builders.append(util.BuilderConfig(
 			name=builder_name,
-			description=global_urls[constructicon_name]+' '+git_state,
+			description=global_repo_urls[constructicon_name]+' '+git_state,
 			slavenames=slave_names,
 			factory=factory(constructicon_name, builder_name, deps, commands, upload),
 		))
@@ -270,7 +270,7 @@ BuildmasterConfig={
 		showUsersPage=True
 	))],
 	'codebaseGenerator': lambda chdict: chdict['repository'],
-	'change_source': [changes.GitPoller(repourl=i, branches=True, pollInterval=30) for i in all_urls],
+	'change_source': [changes.GitPoller(repourl=i, branches=True, pollInterval=30) for i in all_repo_urls],
 	'mergeRequests': False,
 	'debugPassword': 'sesame',
 	'title': 'devastator {{{devastator_git_state}}}',
@@ -293,7 +293,7 @@ def run(constructicons_override={}):
 	start=os.getcwd()
 	os.chdir(os.path.join(folder, 'constructicons'))
 	constructicons={}
-	urls={}
+	repo_urls={}
 	git_states={}
 	g=glob.glob(os.path.join('*', 'constructicon.py'))
 	assert len(g)
@@ -301,7 +301,7 @@ def run(constructicons_override={}):
 		name=os.path.split(i)[0]
 		constructicons[name]=common.constructicon(i)
 		os.chdir(name)
-		urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
+		repo_urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
 		git_states[name]=common.git_state()
 		print('constructing constructicon - commit: {}, repo: {} '.format(git_states[name], name))
 		os.chdir('..')
@@ -312,7 +312,7 @@ def run(constructicons_override={}):
 	os.chdir('master')
 	with open('master.cfg', 'w') as file: file.write(render(template,
 		constructicons=constructicons,
-		urls=urls,
+		repo_urls=repo_urls,
 		git_states=git_states,
 		devastator_git_state=common.git_state(),
 		devastator_host=socket.gethostbyname(socket.gethostname()),
