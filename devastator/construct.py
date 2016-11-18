@@ -134,8 +134,10 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 all_builders=[]
 all_schedulers=[]
 all_repo_urls=set(global_repo_urls.values())
+all_slaves=cybertron['slaves']
 errors=1
 for constructicon_name, constructicon_spec in global_constructicons.items():
+	constructicon_spec=Config.create(constructicon_spec)
 	git_state=global_git_states[constructicon_name]
 	def error(message):
 		try: name=builder_name
@@ -153,23 +155,27 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			name=name+'-force',
 			builderNames=[name],
 		))
-	if type(constructicon_spec)!=dict:
+	if not isinstance(constructicon_spec, Config):
 		error('constructicon is not a dict'); continue
-	for builder_name, builder_spec in constructicon_spec.items():
+	slaves=cybertron['slaves']
+	if 'slaves' in constructicon_spec:
+		x={constructicon_name+'-'+i: j for i, j in constructicon_spec['slaves'].items()}
+		slaves.update(x)
+		all_slaves.update(x)
+	for builder_name, builder_spec in constructicon_spec['builders'].items():
 		#builder name
 		if type(builder_name)!=str:
 			error('builder name is not a str'); continue
 		builder_name=constructicon_name+'-'+builder_name
 		#builder spec
-		if type(builder_spec)!=dict:
+		if not isinstance(builder_spec, Config):
 			error('builder spec is not a dict'); continue
-		builder_spec=Config.create(builder_spec)
 		#slave features
 		features=builder_spec.get('features', Config.create({}))
 		if not isinstance(features, Config):
 			error('features is not a dict'); continue
 		slave_names=[]
-		for slave_name, slave_features in cybertron['slaves'].items():
+		for slave_name, slave_features in slaves.items():
 			for feature, value in features.items():
 				if feature not in slave_features: break
 				if slave_features[feature]!=value: break
@@ -253,7 +259,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 
 BuildmasterConfig={
 	'db': {'db_url': 'sqlite:///state.sqlite'},
-	'slaves': [buildslave.BuildSlave(i, common.password) for i in cybertron['slaves'].keys()+['none']],
+	'slaves': [buildslave.BuildSlave(i, common.password) for i in all_slaves.keys()+['none']],
 	'protocols': {'pb': {'port': cybertron['devastator_slave_port']}},
 	'builders': all_builders,
 	'schedulers': all_schedulers,
@@ -299,7 +305,7 @@ def run(constructicons_override={}):
 	assert len(g)
 	for i in g:
 		name=os.path.split(i)[0]
-		constructicons[name]=common.constructicon(i)
+		constructicons[name]=common.constructicon(name)
 		os.chdir(name)
 		repo_urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
 		git_states[name]=common.git_state()

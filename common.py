@@ -1,4 +1,4 @@
-import subprocess
+import os, subprocess
 
 password='uuvdj_ksdjcls2dnwzxo'
 
@@ -21,8 +21,8 @@ def sane_step(Step, **kwargs):
 	if 'warnOnWarnings' not in kwargs: kwargs['warnOnWarnings']=True
 	return Step(**kwargs)
 
-def constructicon(name):
-	with open(name) as file:
+def constructicon(path='.'):
+	with open(os.path.join(path, 'constructicon.py')) as file:
 		locals={'constructicon': None}
 		exec(file.read(), None, locals)
 		return locals['constructicon']
