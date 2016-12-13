@@ -16,7 +16,7 @@ ForceScheduler=schedulers.ForceScheduler
 Nightly=schedulers.Nightly
 AnyBranchScheduler=schedulers.AnyBranchScheduler
 
-with open(os.path.join(folder, '..', '..', 'cybertron.py')) as file: cybertron=eval(file.read())
+cybertron=common.cybertron(os.path.join(folder, '..', '..'))
 
 parameter_prefix='parameter-'
 

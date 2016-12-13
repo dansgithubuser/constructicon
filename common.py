@@ -21,8 +21,14 @@ def sane_step(Step, **kwargs):
 	if 'warnOnWarnings' not in kwargs: kwargs['warnOnWarnings']=True
 	return Step(**kwargs)
 
-def constructicon(path='.'):
-	with open(os.path.join(path, 'constructicon.py')) as file:
-		locals={'constructicon': None}
+def execute(file_name, var):
+	with open(file_name) as file:
+		locals={var: None}
 		exec(file.read(), None, locals)
-		return locals['constructicon']
+		return locals[var]
+
+def constructicon(path='.'):
+	return execute(os.path.join(path, 'constructicon.py'), 'constructicon')
+
+def cybertron(path='.'):
+	return execute(os.path.join(path, 'cybertron.py'), 'cybertron')

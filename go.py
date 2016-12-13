@@ -45,17 +45,17 @@ class Cybertron:
 
 	def set(self, contents):
 		print('writing cybertron.py')
-		pprint.pprint(contents)
-		with open(os.path.join(folder, 'cybertron.py'), 'w') as file: file.write(pprint.pformat(contents))
-		self.contents=contents
+		print(contents)
+		with open(os.path.join(folder, 'cybertron.py'), 'w') as file: file.write(contents)
+		self.contents=None
+		self._load()
 
 	def _load(self):
-		if not self.contents:
-			with open(os.path.join(folder, 'cybertron.py')) as file: self.contents=eval(file.read())
+		if not self.contents: self.contents=common.cybertron(folder)
 
 cybertron=Cybertron()
 
-cybertron_example={
+cybertron_example='''cybertron={
 	'slaves': {
 		'slave-1': {'platform': 'linux'},
 	},
@@ -65,6 +65,7 @@ cybertron_example={
 	'devastator_slave_port': 9123,
 	'devastator_file_server_port': 9124,
 }
+'''
 
 def devastator_slave_name(args):
 	name=args.devastator_slave_name
