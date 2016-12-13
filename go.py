@@ -2,25 +2,10 @@
 
 #=====imports=====#
 import common
-import os, pprint, sys, time, webbrowser
-
-if sys.version_info[0]==2:
-	from cookielib import CookieJar
-	from urllib2 import Request
-	from urllib2 import build_opener
-	from urllib2 import HTTPCookieProcessor
-	from urllib import urlopen
-	from urllib import urlencode
-else:
-	from http.cookiejar import CookieJar
-	from urllib.request import Request
-	from urllib.request import build_opener
-	from urllib.request import HTTPCookieProcessor
-	from urllib.request import urlopen
-	from urllib.parse import urlencode
+import os, pprint, re, socket, sys, time, webbrowser
 
 #=====globals=====#
-import random, re, socket, string
+import random, string
 stamp=''.join(random.choice(string.ascii_lowercase) for i in range(16))
 
 try: input=raw_input
@@ -111,6 +96,21 @@ def assert_ports_clean():
 		if i.endswith('_port'): assert(check_port_closed(j))
 
 #=====forcer=====#
+if sys.version_info[0]==2:
+	from cookielib import CookieJar
+	from urllib2 import Request
+	from urllib2 import build_opener
+	from urllib2 import HTTPCookieProcessor
+	from urllib import urlopen
+	from urllib import urlencode
+else:
+	from http.cookiejar import CookieJar
+	from urllib.request import Request
+	from urllib.request import build_opener
+	from urllib.request import HTTPCookieProcessor
+	from urllib.request import urlopen
+	from urllib.parse import urlencode
+
 class Forcer:
 	def __init__(self, server, port, builder=None, user=None, password=None, skip_get_parameters=False):
 		self.master='http://{}:{}'.format(server, port)
