@@ -227,7 +227,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 				scheduler_args['minute']=spec.get('minute', 0)
 				scheduler_args['branch']='master'
 			elif spec['type']=='commit':
-				scheduler_args['change_filter']=util.ChangeFilter(branch_re=spec.get('branch-regex', '.*'))
+				scheduler_args['change_filter']=util.ChangeFilter(branch_re=spec.get('branch_regex', '.*'))
 			#codebases
 			x=[global_repo_urls[constructicon_name]]+deps
 			if spec['type']=='force':

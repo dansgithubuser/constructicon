@@ -29,7 +29,7 @@ constructicon={
 				'commit-13': {
 					'type': 'commit',
 					'parameters': {'lucky_number': 13},
-					'branch-regex': 'test',
+					'branch_regex': 'test',
 				},
 			},
 		},
