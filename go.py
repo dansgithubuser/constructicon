@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+#=====imports=====#
 import common
 import os, pprint, sys, time, webbrowser
 
@@ -18,6 +19,7 @@ else:
 	from urllib.request import urlopen
 	from urllib.parse import urlencode
 
+#=====globals=====#
 import random, re, socket, string
 stamp=''.join(random.choice(string.ascii_lowercase) for i in range(16))
 
@@ -32,6 +34,7 @@ megatron_slave_path=os.path.join('megatron', 'slave')
 devastator_master_path=os.path.join('devastator', 'master')
 devastator_slave_path=os.path.join('devastator', 'slave')
 
+#=====cybertron=====#
 class Cybertron:
 	def __init__(self): self.contents=None
 
@@ -67,6 +70,7 @@ cybertron_example='''cybertron={
 }
 '''
 
+#=====helpers=====#
 def devastator_slave_name(args):
 	name=args.devastator_slave_name
 	try:
@@ -106,6 +110,7 @@ def assert_ports_clean():
 	for i, j in cybertron.items():
 		if i.endswith('_port'): assert(check_port_closed(j))
 
+#=====forcer=====#
 class Forcer:
 	def __init__(self, server, port, builder=None, user=None, password=None, skip_get_parameters=False):
 		self.master='http://{}:{}'.format(server, port)
@@ -200,6 +205,7 @@ class Forcer:
 		request=Request(url, urlencode(data).encode('utf-8'), headers)
 		return retry(lambda: self.url_opener.open(request))
 
+#=====subfunctions=====#
 def m1(args):
 	invoke('buildbot create-master {}'.format(megatron_master_path))
 	invoke('buildslave create-slave {} localhost:{} megatron-slave {}'.format(
@@ -364,6 +370,7 @@ def test(args):
 	invoke('python go.py m0')
 	invoke('python go.py d0')
 
+#=====args=====#
 import argparse
 parser=argparse.ArgumentParser()
 subparsers=parser.add_subparsers()
@@ -383,5 +390,6 @@ subparser=subparsers.add_parser('test', help='run tests')
 subparser.set_defaults(func=test)
 subparser.add_argument('regex')
 
+#=====main=====#
 args=parser.parse_args()
 args.func(args)
