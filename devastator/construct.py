@@ -33,35 +33,35 @@ class Config:
 		elif type(x)==list: return [Config.create(i) for i in x]
 		else: return x
 
-	def __init__(self, dictionary):
+	def __init__(self, dict):
 		self.visited=set()
-		self.dictionary=dictionary
+		self.dict=dict
 
 	def __getitem__(self, k):
 		self.visited.add(k)
-		return self.dictionary[k]
+		return self.dict[k]
 
-	def __contains__(self, k): return k in self.dictionary
+	def __contains__(self, k): return k in self.dict
 
-	def __repr__(self): return 'configuration'+str((self.visited, self.dictionary))
+	def __repr__(self): return 'configuration'+str((self.visited, self.dict))
 
 	def get(self, k, default):
-		if k in self.dictionary: return self[k]
+		if k in self.dict: return self[k]
 		else: return default
 
 	def items(self, mark_used=True):
-		if mark_used: self.visited=self.dictionary.keys()
-		return self.dictionary.items()
+		if mark_used: self.visited=self.dict.keys()
+		return self.dict.items()
 
 	def unused(self, prefix=[]):
-		result=[prefix+[k] for k in self.dictionary if k not in self.visited]
+		result=[prefix+[k] for k in self.dict if k not in self.visited]
 		def recurse_list(k, v, f):
 			if type(v)==list:
 				for i in range(len(v)): recurse_list(k+[i], v[i], f)
 			else: f(k, v)
 		def recurse(k, v):
 			if isinstance(v, Config): result.extend(v.unused(k))
-		for k, v in self.dictionary.items(): recurse_list(prefix+[k], v, recurse)
+		for k, v in self.dict.items(): recurse_list(prefix+[k], v, recurse)
 		return result
 
 def repo_url_to_name(repo_url):
@@ -81,8 +81,8 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 			mode='full',
 			method='fresh',
 		)
-	def extract_parameters(d):
-		return {i[len(parameter_prefix):]: str(j[0]) for i, j in d.items() if i.startswith(parameter_prefix)}
+	def extract_parameters(dict):
+		return {i[len(parameter_prefix):]: str(j[0]) for i, j in dict.items() if i.startswith(parameter_prefix)}
 	@util.renderer
 	def env(properties): return extract_parameters(properties.asDict())
 	def format(command):
