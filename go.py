@@ -2,7 +2,7 @@
 
 #=====imports=====#
 import common
-import os, pprint, re, socket, sys, time, webbrowser
+import os, pprint, re, socket, subprocess, sys, time, webbrowser
 
 #=====globals=====#
 import random, string
@@ -74,7 +74,6 @@ def invoke(invocation, async=False, path='.'):
 	print(timestamp())
 	print('invoking{}: {}'.format(' async' if async else '', invocation))
 	print('in: '+os.getcwd())
-	import subprocess
 	r=(subprocess.Popen if async else subprocess.check_call)(invocation, shell=True)
 	os.chdir(start)
 	return r
@@ -370,6 +369,15 @@ def test(args):
 	invoke('python go.py m0')
 	invoke('python go.py d0')
 
+def c(args):
+	cans={
+		't': ['test', '.*'],
+	}
+	if args.name not in cans or args.name=='h':
+		print('available cans:')
+		pprint.pprint(cans)
+	else: subprocess.check_call(['python', 'go.py']+cans[args.name])
+
 #=====args=====#
 import argparse
 parser=argparse.ArgumentParser()
@@ -389,6 +397,9 @@ subparsers.add_parser('example', help='run example').set_defaults(func=example)
 subparser=subparsers.add_parser('test', help='run tests')
 subparser.set_defaults(func=test)
 subparser.add_argument('regex')
+subparser=subparsers.add_parser('c', help='canned commands')
+subparser.add_argument('name')
+subparser.set_defaults(func=c)
 
 #=====main=====#
 args=parser.parse_args()
