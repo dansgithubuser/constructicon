@@ -45,13 +45,31 @@ cybertron=Cybertron()
 
 cybertron_example='''cybertron={
 	'slaves': {
-		'slave-1': {'platform': 'linux'},
+		'slave-1': {'platform': 'linux', 'memory': 'goldfish'},
+		'slave-bad': {},
 	},
 	'megatron_master_port': 9120,
 	'megatron_slave_port': 9121,
 	'devastator_master_port': 9122,
 	'devastator_slave_port': 9123,
 	'devastator_file_server_port': 9124,
+	'builder_base': {
+		'features': {'memory': 'goldfish'},
+		'deps': ['https://github.com/dansgithubuser/crangen'],
+		'precommands': ['echo precommand from cybertron'],
+		'commands': ['echo command from cybertron'],
+		'upload': {'go.py': 'go.py'},
+		'schedulers': {
+			'force-cybertron': {
+				'type': 'force',
+				'parameters': {'tea': 'secrets'},
+			},
+			'commit-cybertron': {
+				'type': 'commit',
+				'branch_regex': 'test-cybertron',
+			},
+		},
+	},
 }
 '''
 
@@ -92,7 +110,9 @@ def check_port_closed(port):
 
 def assert_ports_clean():
 	for i, j in cybertron.items():
-		if i.endswith('_port'): assert(check_port_closed(j))
+		if i.endswith('_port'):
+			if not check_port_closed(j):
+				raise Exception('port {} is not closed'.format(j))
 
 #=====forcer=====#
 if sys.version_info[0]==2:
@@ -111,7 +131,7 @@ else:
 	from urllib.parse import urlencode
 
 class Forcer:
-	def __init__(self, server, port, builder=None, user=None, password=None, skip_get_parameters=False):
+	def __init__(self, server, port, builder, user=None, password=None):
 		self.master='http://{}:{}'.format(server, port)
 		self.builder=builder
 		if user:
@@ -121,8 +141,7 @@ class Forcer:
 				raise Exception('invalid login')
 		else:
 			self.url_opener=build_opener()
-		self.parameters={}
-		if not skip_get_parameters: self.parameters=self.get_parameters()
+		self.parameters=self.get_parameters()
 
 	def get_parameters(self, build=None):
 		result={}
@@ -149,6 +168,8 @@ class Forcer:
 		return result
 
 	def force(self, parameters={}, dry=False):
+		self.requested_build=None
+		self.url=None
 		self.parameters.update(parameters)
 		self.parameters['reason']=self.parameters.get('reason', '')+'--'+stamp
 		self.force_url='{}/builders/{}/force'.format(self.master, self.builder)
@@ -170,8 +191,11 @@ class Forcer:
 			if self.get_progress()[0]: break
 			time.sleep(period)
 
+	def wait_all(self, period=1):
+		while self.json_request_generic('')['builders'][self.builder]['state']!='idle': time.sleep(period)
+
 	def get_progress(self):
-		if not hasattr(self, 'requested_build'):
+		if not self.requested_build:
 			root=self.json_request(-1)
 			if stamp in root['reason']:
 				self.requested_build=root['number']
@@ -183,7 +207,8 @@ class Forcer:
 		return (True, root['results'])
 
 	def get_url(self):
-		if hasattr(self, 'url'): return self.url
+		if not self.url: self.get_progress()
+		if self.url: return self.url
 		return 'no url, force url was: {}'.format(self.force_url)
 
 	def json_request_generic(self, suffix):
@@ -311,9 +336,10 @@ def example(args):
 	invoke('python go.py m0')
 	invoke('python go.py d0')
 
-def expect(condition, description):
+def expect(condition, description, information=None):
 	if not condition:
 		print('condition failed: '+description)
+		if information: print(information)
 		assert(False)
 
 def test(args):
@@ -322,17 +348,15 @@ def test(args):
 	invoke('python go.py m0')
 	invoke('python go.py d0')
 	assert_ports_clean()
+	time.sleep(1)
 	invoke('python go.py m1')
 	m_forcer=Forcer('localhost', cybertron['megatron_master_port'], 'megatron-builder')
 	m_forcer.force({'constructicon_repo_url': 'https://github.com/dansgithubuser/constructicon', 'reason': 'test setup'})
 	m_forcer.wait()
 	r=m_forcer.json_request(-1)
-	expect(stamp in r['reason'], 'setup - megatron build happened')
 	expect(r['results']==0, 'setup - megatron build succeeded')
 	invoke('python go.py d1 slave-1')
-	d_forcer=Forcer('localhost', cybertron['devastator_master_port'], skip_get_parameters=True)
-	r=d_forcer.json_request_generic('')
-	expect('constructicon-sleep' in r['builders'].keys(), 'setup - constructicon-sleep builder created')
+	basic_forcer=Forcer('localhost', cybertron['devastator_master_port'], 'constructicon-basic')
 	#test
 	if re.match(args.regex, 'reconfig'):
 		#modify constructicon.py
@@ -345,26 +369,47 @@ def test(args):
 		invoke('git commit -m "test reconfig"')
 		os.chdir(folder)
 		#request original build
-		d_forcer=Forcer('localhost', cybertron['devastator_master_port'], 'constructicon-sleep')
-		d_forcer.force({'reason': 'test reconfig original'})
+		sleep_forcer=Forcer('localhost', cybertron['devastator_master_port'], 'constructicon-sleep')
+		sleep_forcer.force({'reason': 'test reconfig original'})
 		#reconfig
 		m_forcer.force({'constructicon_repo_url': '', 'reason': 'test reconfig reconfig'})
 		m_forcer.wait()
 		#request reconfigged build
-		d_forcer.force({'reason': 'test reconfig reconfigged'})
-		while d_forcer.json_request_generic('')['builders']['constructicon-sleep']['state']!='idle': time.sleep(1)
+		sleep_forcer.force({'reason': 'test reconfig reconfigged'})
+		sleep_forcer.wait_all()
 		#check stuff
-		r=d_forcer.json_request(-1)
-		expect(stamp in r['reason'], 'reconfig - reconfigged build happened')
-		expect(r['results']==0, 'reconfig - reconfigged build succeeded')
-		expect(len(r['steps'])==5, 'reconfig - reconfigged build had an extra step')
-		r=d_forcer.json_request(-2)
-		expect(stamp in r['reason'], 'reconfig - original build happened')
-		expect(r['results']==0, 'reconfig - original build succeeded')
-		expect(len(r['steps'])==4, 'reconfig - original build had normal number of steps')
+		r1=sleep_forcer.json_request(-1)
+		r2=sleep_forcer.json_request(-2)
+		expect(stamp in r1['reason'], 'reconfig - reconfigged build happened')
+		expect(r1['results']==0, 'reconfig - reconfigged build succeeded')
+		expect(stamp in r2['reason'], 'reconfig - original build happened')
+		expect(r2['results']==0, 'reconfig - original build succeeded')
+		expect(len(r1['steps'])==len(r2['steps'])+1, 'reconfig - reconfigged build had an extra step')
 	if re.match(args.regex, 'user-slave'):
 		invoke('python go.py d1 user-slave-1')
-		expect(d_forcer.json_request_generic('')['slaves']['constructicon-user-slave-1']['connected'], 'user-slave - user slave connected to devastator')
+		r=basic_forcer.json_request_generic('')
+		expect(r['slaves']['constructicon-user-slave-1']['connected'], 'user-slave - user slave connected to devastator', pprint.pformat(r))
+	if re.match(args.regex, 'builder_base'):
+		#---builder---#
+		r=basic_forcer.json_request_generic('')['builders']['constructicon-basic']
+		#features
+		expect('slave-bad' not in r['slaves'], 'no bad slave', pprint.pformat(r))
+		expect('user-slave-bad' not in r['slaves'], 'no bad user slave', pprint.pformat(r))
+		#schedulers
+		expect('constructicon-basic-force-cybertron' in r['schedulers'], 'builder_base force scheduler', pprint.pformat(r))
+		expect('constructicon-basic-commit-cybertron' in r['schedulers'], 'builder_base commit scheduler', pprint.pformat(r))
+		#---build---#
+		basic_forcer.force({'reason': 'test builder_base'})
+		basic_forcer.wait()
+		r=basic_forcer.json_request(-1)
+		#deps
+		expect(any(['crangen' in i['name'] for i in r['steps']]), 'builder_base dep', pprint.pformat(r))
+		#precommands
+		expect(any([any(['precommand' in j for j in i['text']]) for i in r['steps']]), 'builder_base precommand', pprint.pformat(r))
+		#commands
+		expect(any([any(['command' in j for j in i['text']]) for i in r['steps']]), 'builder_base command', pprint.pformat(r))
+		#upload
+		expect(any(['upload' in i['name'] for i in r['steps']]), 'builder_base upload', pprint.pformat(r))
 	#teardown
 	invoke('python go.py m0')
 	invoke('python go.py d0')

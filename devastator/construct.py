@@ -45,13 +45,17 @@ class Config:
 
 	def __repr__(self): return 'configuration'+str((self.visited, self.dict))
 
+	def update(self, dict): self.dict.update(dict)
+
 	def get(self, k, default):
 		if k in self.dict: return self[k]
 		else: return default
 
-	def items(self, mark_used=True):
+	def items(self, mark_used=False):
 		if mark_used: self.visited=self.dict.keys()
 		return self.dict.items()
+
+	def keys(self): return self.dict.keys()
 
 	def unused(self, prefix=[]):
 		result=[prefix+[k] for k in self.dict if k not in self.visited]
@@ -92,10 +96,12 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 	result.addSteps(
 		[
 			common.sane_step(steps.SetProperty,
+				name='devastator git state',
 				property='devastator_git_state',
 				value='{{{devastator_git_state}}}',
 			),
 			common.sane_step(steps.SetProperty,
+				name='constructicon git state',
 				property='git_state',
 				value=global_git_states[constructicon_name],
 			),
@@ -110,7 +116,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 			env=env,
 		) for i in range(len(commands))]
 	)
-	for i, j in upload.items():
+	for i, j in upload.items(True):
 		@util.renderer
 		def master_dest(properties):
 			return os.path.join(builder_name, str(properties['buildnumber'])+'-constructicon', j)
@@ -130,6 +136,49 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 		)
 		result.addStep(step)
 	return result
+
+def check_dict(x, key_type, value_type):
+	return (
+		(isinstance(x, Config) or type(x)!=dict)
+		and
+		all([type(i)==key_type and type(j)==value_type for i, j in x.items()])
+	)
+
+def check_list(x, item_type):
+	return (
+		type(x)==list
+		and
+		all([type(i)==item_type for i in x])
+	)
+
+def t_or_list_of(t, x): return type(x)==t or check_list(x, t)
+
+def intersect(dict1, dict2):
+	return set(dict1.keys())&set(dict2.keys())
+
+def get_base(key, default):
+	result=default
+	if 'builder_base' in cybertron:
+		if key in cybertron['builder_base']:
+			result=cybertron['builder_base'][key]
+	return Config.create(result)
+
+base={
+	'features': get_base('features', {}),
+	'deps': get_base('deps', []),
+	'precommands': get_base('precommands', []),
+	'commands': get_base('commands', []),
+	'upload': get_base('upload', {}),
+	'schedulers': get_base('schedulers', {}),
+}
+
+def check(spec, key, expectations):
+	for expectation in expectations:
+		if not expectation[0](spec, *expectation[1:-1]):
+			error(key+' '+expectation[-1]); return False
+		if not expectation[0](base[key], *expectation[1:-1]):
+			error('cybertron builder_base '+key+' '+expectation[-1]); return False
+	return True
 
 all_builders=[]
 all_schedulers=[]
@@ -159,10 +208,10 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		error('constructicon is not a dict'); continue
 	slaves=cybertron['slaves']
 	if 'slaves' in constructicon_spec:
-		x={constructicon_name+'-'+i: j for i, j in constructicon_spec['slaves'].items()}
+		x={constructicon_name+'-'+i: j for i, j in constructicon_spec['slaves'].items(True)}
 		slaves.update(x)
 		all_slaves.update(x)
-	for builder_name, builder_spec in constructicon_spec['builders'].items():
+	for builder_name, builder_spec in constructicon_spec['builders'].items(True):
 		#builder name
 		if type(builder_name)!=str:
 			error('builder name is not a str'); continue
@@ -172,11 +221,13 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			error('builder spec is not a dict'); continue
 		#slave features
 		features=builder_spec.get('features', Config.create({}))
-		if not isinstance(features, Config):
-			error('features is not a dict'); continue
+		if not check(features, 'features', [[check_dict, str, str, 'is not a dict of str']]): continue
+		if intersect(features.dict, base['features']):
+			error('features conflicts with cybertron builder_base features'); continue
+		features.update(base['features'])
 		slave_names=[]
 		for slave_name, slave_features in slaves.items():
-			for feature, value in features.items():
+			for feature, value in features.items(True):
 				if feature not in slave_features: break
 				if slave_features[feature]!=value: break
 			else: slave_names.append(slave_name)
@@ -184,35 +235,47 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			error('no matching slaves'); continue
 		#deps
 		deps=builder_spec.get('deps', [])
-		if any(type(i)!=str for i in deps):
-			error('deps is not a list of str'); continue
+		if not check(deps, 'deps', [[check_list, str, 'is not a list of str']]): continue
+		deps+=[i for i in base['deps'] if i not in deps]
 		all_repo_urls.update(deps)
+		#precommands
+		precommands=builder_spec.get('precommands', [])
+		if not check(precommands, 'precommands', [
+			[lambda x: type(x)==list, 'is not a list'],
+			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a precommand that is not a str or list of str'],
+		]): continue
+		precommands=base['precommands']+precommands
 		#commands
 		if 'commands' not in builder_spec:
 			error('no commands'); continue
 		commands=builder_spec['commands']
-		def t_or_list_of(t, x): return type(x)==t or type(x)==list and all([type(i)==t for i in x])
-		if any(not t_or_list_of(str, i) for i in commands):
-			error('command is not a str or list of str'); continue
+		if not check(commands, 'commands', [
+			[lambda x: type(x)==list, 'is not a list'],
+			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a command that is not a str or list of str'],
+		]): continue
+		commands+=base['commands']
 		#upload
 		upload=builder_spec.get('upload', Config.create({}))
-		if not isinstance(upload, Config) or any([type(i)!=str or type(j)!=str for i, j in upload.items(False)]):
-			error('upload is not a dict of str'); continue
-		if any(['..' in j for i, j in upload.items()]):
-			error('upload destination may not contain ..'); continue
+		if not check(upload, 'upload', [
+			[check_dict, str, str, 'is not a dict of str'],
+			[lambda x: all(['..' not in j for i, j in x.items()]), 'destination may not contain ..'],
+		]): continue
+		if intersect(upload.dict, base['upload']):
+			error('upload conflicts with cybertron builder_base upload'); continue
+		upload.update(base['upload'])
 		#schedulers
 		schedulers=builder_spec.get('schedulers', Config.create({'force': {'type': 'force'}}))
-		if not isinstance(schedulers, Config):
-			error('schedulers is not a dict'); continue
-		if any([type(i)!=str for i, j in schedulers.items(False)]):
-			error("schedulers has a key that isn't a str"); continue
-		if any([not isinstance(j, Config) for i, j in schedulers.items(False)]):
-			error("schedulers has a value that isn't a dict"); continue
-		if any(['type' not in j for i, j in schedulers.items(False)]):
-			error('a scheduler is missing a type specification'); continue
-		if any([j['type'] not in ['force', 'time', 'commit'] for i, j in schedulers.items(False)]):
-			error('a scheduler has an unknown type specification'); continue
-		for name, spec in schedulers.items():
+		if not check(schedulers, 'schedulers', [
+			[lambda x: isinstance(x, Config), 'is not a dict'],
+			[lambda x: all([type(i)==str for i in x.keys()]), "has a key that isn't a str"],
+			[lambda x: all([isinstance(j, Config) for i, j in x.items()]), "has a value that isn't a dict"],
+			[lambda x: all(['type' in j.keys() for i, j in x.items()]), 'contains a scheduler that is missing a type specification'],
+			[lambda x: all([j['type'] in ['force', 'time', 'commit'] for i, j in x.items()]), 'contains a scheduler that has an unknown type specification'],
+		]): continue
+		if intersect(schedulers, base['schedulers']):
+			error('schedulers conflicts with cybertron builder_base schedulers'); continue
+		schedulers.update(base['schedulers'])
+		for name, spec in schedulers.items(True):
 			scheduler_args={}
 			#name
 			scheduler_args['name']=builder_name+'-'+name
@@ -237,9 +300,9 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			#parameters
 			parameters=spec.get('parameters', Config.create({}))
 			if spec['type']=='force':
-				scheduler_args['properties']=[util.StringParameter(name=parameter_prefix+i, default=j) for i, j in parameters.items()]
+				scheduler_args['properties']=[util.StringParameter(name=parameter_prefix+i, default=j) for i, j in parameters.items(True)]
 			else:
-				scheduler_args['properties']={parameter_prefix+i: str(j) for i, j in parameters.items()}
+				scheduler_args['properties']={parameter_prefix+i: str(j) for i, j in parameters.items(True)}
 			#append
 			all_schedulers.append({
 				'force': ForceScheduler,
@@ -251,7 +314,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			name=builder_name,
 			description=global_repo_urls[constructicon_name]+' '+git_state,
 			slavenames=slave_names,
-			factory=factory(constructicon_name, builder_name, deps, commands, upload),
+			factory=factory(constructicon_name, builder_name, deps, precommands+commands, upload),
 		))
 		unused=builder_spec.unused()
 		if unused:

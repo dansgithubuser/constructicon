@@ -34,11 +34,12 @@ constructicon={
 			},
 		},
 		'user-slave': {
-			'features': {'platform': 'snes'},
+			'features': {'platform': 'snes', 'memory': 'goldfish'},
 			'commands': ['python go.py -h'],
 		},
 	},
 	'slaves': {
-		'user-slave-1': {'platform': 'snes'},
+		'user-slave-1': {'platform': 'snes', 'memory': 'goldfish'},
+		'user-slave-bad': {},
 	},
 }
