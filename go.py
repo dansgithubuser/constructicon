@@ -258,8 +258,9 @@ def d1(args):
 	if not os.path.exists(devastator_slave_path): os.makedirs(devastator_slave_path)
 	name=devastator_slave_name(args)
 	path=os.path.join(devastator_slave_path, name)
-	invoke('buildslave create-slave {} localhost:{} {} {}'.format(
+	invoke('buildslave create-slave {} {}:{} {} {}'.format(
 		path,
+		args.megatron_hostname,
 		cybertron['devastator_slave_port'],
 		name,
 		common.password
@@ -434,6 +435,7 @@ subparsers.add_parser('mc', help='megatron master check').set_defaults(func=mc)
 subparser=subparsers.add_parser('d1', help='devastator slave start')
 subparser.set_defaults(func=d1)
 subparser.add_argument('devastator_slave_name')
+subparser.add_argument('--megatron-hostname', '-m', default='localhost')
 subparsers.add_parser('d0', help='devastator slave stop').set_defaults(func=d0)
 subparsers.add_parser('dr', help='devastator master create/restart/reconfig -- usually called by megatron').set_defaults(func=dr)
 subparsers.add_parser('df', help='devastator file server').set_defaults(func=df)
