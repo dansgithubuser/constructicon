@@ -275,6 +275,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if intersect(schedulers, base['schedulers']):
 			error('schedulers conflicts with cybertron builder_base schedulers'); continue
 		schedulers.update(base['schedulers'])
+		builder_schedulers=[]
 		for name, spec in schedulers.items(True):
 			scheduler_args={}
 			#name
@@ -304,21 +305,23 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			else:
 				scheduler_args['properties']={parameter_prefix+i: str(j) for i, j in parameters.items(True)}
 			#append
-			all_schedulers.append({
+			builder_schedulers.append({
 				'force': ForceScheduler,
 				'time': Nightly,
 				'commit': AnyBranchScheduler
 			}[spec['type']](**scheduler_args))
 		#append
+		f=factory(constructicon_name, builder_name, deps, precommands+commands, upload)
+		unused=builder_spec.unused()
+		if unused:
+			error('unused configuration keys\n'+pprint.pformat(unused)); continue
 		all_builders.append(util.BuilderConfig(
 			name=builder_name,
 			description=global_repo_urls[constructicon_name]+' '+git_state,
 			slavenames=slave_names,
-			factory=factory(constructicon_name, builder_name, deps, precommands+commands, upload),
+			factory=f,
 		))
-		unused=builder_spec.unused()
-		if unused:
-			error('unused configuration keys\n'+pprint.pformat(unused)); continue
+		all_schedulers.extend(builder_schedulers)
 
 BuildmasterConfig={
 	'db': {'db_url': 'sqlite:///state.sqlite'},
