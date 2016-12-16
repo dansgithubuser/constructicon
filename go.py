@@ -74,14 +74,6 @@ cybertron_example='''cybertron={
 '''
 
 #=====helpers=====#
-def devastator_slave_name(args):
-	name=args.devastator_slave_name
-	try:
-		if args.devastator_slave_name in common.constructicon()['slaves']:
-			name=os.path.split(os.getcwd())[1]+'-'+name
-	except: pass
-	return name
-
 def timestamp():
 	import datetime
 	return '{:%Y-%m-%d %H:%M:%S.%f}'.format(datetime.datetime.now())
@@ -256,13 +248,12 @@ def mc(args):
 
 def d1(args):
 	if not os.path.exists(devastator_slave_path): os.makedirs(devastator_slave_path)
-	name=devastator_slave_name(args)
-	path=os.path.join(devastator_slave_path, name)
+	path=os.path.join(devastator_slave_path, args.devastator_slave_name)
 	invoke('buildslave create-slave {} {}:{} {} {}'.format(
 		path,
 		args.megatron_hostname,
 		cybertron['devastator_slave_port'],
-		name,
+		args.devastator_slave_name,
 		common.password
 	))
 	invoke('buildslave restart {}'.format(path))
@@ -387,7 +378,7 @@ def test(args):
 		expect(r2['results']==0, 'reconfig - original build succeeded')
 		expect(len(r1['steps'])==len(r2['steps'])+1, 'reconfig - reconfigged build had an extra step')
 	if re.match(args.regex, 'user-slave'):
-		invoke('python go.py d1 user-slave-1')
+		invoke('python go.py d1 constructicon-user-slave-1')
 		r=basic_forcer.json_request_generic('')
 		expect(r['slaves']['constructicon-user-slave-1']['connected'], 'user-slave - user slave connected to devastator', pprint.pformat(r))
 	if re.match(args.regex, 'builder_base'):
