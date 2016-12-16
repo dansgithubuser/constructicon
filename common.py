@@ -27,8 +27,10 @@ def execute(file_name, var):
 		exec(file.read(), None, locals)
 		return locals[var]
 
-def constructicon(path='.'):
-	return execute(os.path.join(path, 'constructicon.py'), 'constructicon')
+def constructicon(folder):
+	return execute(os.path.join(folder, 'constructicon.py'), 'constructicon')
 
-def cybertron(path='.'):
-	return execute(os.path.join(path, 'cybertron.py'), 'cybertron')
+def cybertron(folder):
+	with open(os.path.join(folder, 'cybertron.txt')) as file:
+		cybertron_folder=file.read()
+	return execute(os.path.join(cybertron_folder, 'cybertron.py'), 'cybertron')

@@ -73,6 +73,10 @@ cybertron_example='''cybertron={
 }
 '''
 
+def cybertron_store_folder(cybertron_folder):
+	with open(os.path.join(folder, 'cybertron.txt'), 'w') as file:
+		file.write(os.path.realpath(cybertron_folder))
+
 #=====helpers=====#
 def timestamp():
 	import datetime
@@ -223,6 +227,7 @@ class Forcer:
 
 #=====subfunctions=====#
 def m1(args):
+	cybertron_store_folder(args.cybertron_folder)
 	invoke('buildbot create-master {}'.format(megatron_master_path))
 	invoke('buildslave create-slave {} localhost:{} megatron-slave {}'.format(
 		megatron_slave_path,
@@ -247,6 +252,7 @@ def mc(args):
 	invoke('buildbot checkconfig {}'.format(megatron_master_path))
 
 def d1(args):
+	cybertron_store_folder(args.cybertron_folder)
 	if not os.path.exists(devastator_slave_path): os.makedirs(devastator_slave_path)
 	path=os.path.join(devastator_slave_path, args.devastator_slave_name)
 	invoke('buildslave create-slave {} {}:{} {} {}'.format(
@@ -295,6 +301,7 @@ def db(args):
 	webbrowser.open('http://localhost:{}'.format(cybertron['devastator_master_port']))
 
 def example(args):
+	cybertron_store_folder(folder)
 	global cybertron
 	if os.path.exists('cybertron.py'): print('cybertron.py already exists, using it.')
 	else: cybertron.set(cybertron_example)
@@ -305,7 +312,7 @@ def example(args):
 	print("This will construct a constructicon for this repo.")
 	print("When you're done that, hit enter again.")
 	input()
-	invoke('python go.py m1')
+	invoke('python go.py m1 {}'.format(folder))
 	webbrowser.open('http://localhost:{}/builders/megatron-builder'.format(cybertron['megatron_master_port']))
 	input()
 	print("Now, when you hit enter, I'll open a browser to a constructicon builder we just made.")
@@ -315,14 +322,14 @@ def example(args):
 	print("When you're done that, hit enter again.")
 	input()
 	webbrowser.open('http://localhost:{}/builders/constructicon-basic'.format(cybertron['devastator_master_port']))
-	invoke('python go.py d1 slave-1')
+	invoke('python go.py d1 slave-1 {}'.format(folder))
 	input()
 	print("At the end of that build you just requested,")
 	print("a build result was uploaded from the devastator slave to the devastator master.")
 	print("To allow users to access this file, I'll start a devastator file server.")
 	print("When you're done checking that out, hit enter again to clean up and quit.")
 	input()
-	f=invoke('python go.py df', async=True)
+	f=invoke('python go.py df'.format(folder), async=True)
 	input()
 	f.kill()
 	invoke('python go.py m0')
@@ -335,24 +342,25 @@ def expect(condition, description, information=None):
 		assert(False)
 
 def test(args):
+	cybertron_store_folder(folder)
 	#setup
 	cybertron.set(cybertron_example)
 	invoke('python go.py m0')
 	invoke('python go.py d0')
 	assert_ports_clean()
 	time.sleep(1)
-	invoke('python go.py m1')
+	invoke('python go.py m1 {}'.format(folder))
 	m_forcer=Forcer('localhost', cybertron['megatron_master_port'], 'megatron-builder')
 	m_forcer.force({'constructicon_repo_url': 'https://github.com/dansgithubuser/constructicon', 'reason': 'test setup'})
 	m_forcer.wait()
 	r=m_forcer.json_request(-1)
 	expect(r['results']==0, 'setup - megatron build succeeded')
-	invoke('python go.py d1 slave-1')
+	invoke('python go.py d1 slave-1 {}'.format(folder))
 	basic_forcer=Forcer('localhost', cybertron['devastator_master_port'], 'constructicon-basic')
 	#test
 	if re.match(args.regex, 'reconfig'):
 		#modify constructicon.py
-		constructicon=common.constructicon()
+		constructicon=common.constructicon(folder)
 		constructicon['builders']['sleep']['commands'].append('python -c "import time; time.sleep(1)"')
 		os.chdir(os.path.join('devastator', 'constructicons', 'constructicon'))
 		with open('constructicon.py', 'w') as file:
@@ -378,7 +386,7 @@ def test(args):
 		expect(r2['results']==0, 'reconfig - original build succeeded')
 		expect(len(r1['steps'])==len(r2['steps'])+1, 'reconfig - reconfigged build had an extra step')
 	if re.match(args.regex, 'user-slave'):
-		invoke('python go.py d1 constructicon-user-slave-1')
+		invoke('python go.py d1 constructicon-user-slave-1 {}'.format(folder))
 		r=basic_forcer.json_request_generic('')
 		expect(r['slaves']['constructicon-user-slave-1']['connected'], 'user-slave - user slave connected to devastator', pprint.pformat(r))
 	if re.match(args.regex, 'builder_base'):
@@ -419,22 +427,45 @@ def c(args):
 import argparse
 parser=argparse.ArgumentParser()
 subparsers=parser.add_subparsers()
-subparsers.add_parser('m1', help='megatron start').set_defaults(func=m1)
-subparsers.add_parser('m0', help='megatron stop' ).set_defaults(func=m0)
-subparsers.add_parser('mb', help='megatron master browser').set_defaults(func=mb)
+
+#-----megatron-----#
+#start
+subparser=subparsers.add_parser('m1', help='megatron start')
+subparser.set_defaults(func=m1)
+subparser.add_argument('cybertron_folder', help='folder containing cybertron.py')
+#stop
+subparsers.add_parser('m0', help='megatron stop').set_defaults(func=m0)
+#browser
+subparser=subparsers.add_parser('mb', help='megatron master browser')
+subparser.set_defaults(func=mb)
+#check config
 subparsers.add_parser('mc', help='megatron master check').set_defaults(func=mc)
+
+#-----devastator-----#
+#start
 subparser=subparsers.add_parser('d1', help='devastator slave start')
 subparser.set_defaults(func=d1)
 subparser.add_argument('devastator_slave_name')
+subparser.add_argument('cybertron_folder', help='folder containing cybertron.py')
 subparser.add_argument('--megatron-hostname', '-m', default='localhost')
+#stop
 subparsers.add_parser('d0', help='devastator slave stop').set_defaults(func=d0)
+#recombobulate
 subparsers.add_parser('dr', help='devastator master create/restart/reconfig -- usually called by megatron').set_defaults(func=dr)
+#file server
 subparsers.add_parser('df', help='devastator file server').set_defaults(func=df)
+#browser
 subparsers.add_parser('db', help='devastator master browser').set_defaults(func=db)
+
+#-----example-----#
 subparsers.add_parser('example', help='run example').set_defaults(func=example)
+
+#-----test-----#
 subparser=subparsers.add_parser('test', help='run tests')
 subparser.set_defaults(func=test)
 subparser.add_argument('regex')
+
+#-----canned commands-----#
 subparser=subparsers.add_parser('c', help='canned commands')
 subparser.add_argument('name')
 subparser.set_defaults(func=c)
