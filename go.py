@@ -31,47 +31,10 @@ class Cybertron:
 		self._load()
 		return self.contents.items()
 
-	def set(self, contents):
-		print('writing cybertron.py')
-		print(contents)
-		with open(os.path.join(folder, 'cybertron.py'), 'w') as file: file.write(contents)
-		self.contents=None
-		self._load()
-
 	def _load(self):
 		if not self.contents: self.contents=common.cybertron(folder)
 
 cybertron=Cybertron()
-
-cybertron_example='''cybertron={
-	'slaves': {
-		'slave-1': {'platform': 'linux', 'memory': 'goldfish'},
-		'slave-bad': {},
-	},
-	'megatron_master_port': 9120,
-	'megatron_slave_port': 9121,
-	'devastator_master_port': 9122,
-	'devastator_slave_port': 9123,
-	'devastator_file_server_port': 9124,
-	'builder_base': {
-		'features': {'memory': 'goldfish'},
-		'deps': ['https://github.com/dansgithubuser/crangen'],
-		'precommands': ['echo precommand from cybertron'],
-		'commands': ['echo command from cybertron'],
-		'upload': {'go.py': 'go.py'},
-		'schedulers': {
-			'force-cybertron': {
-				'type': 'force',
-				'parameters': {'tea': 'secrets'},
-			},
-			'commit-cybertron': {
-				'type': 'commit',
-				'branch_regex': 'test-cybertron',
-			},
-		},
-	},
-}
-'''
 
 def cybertron_store_folder(cybertron_folder):
 	with open(os.path.join(folder, 'cybertron.txt'), 'w') as file:
@@ -305,8 +268,6 @@ def db(args):
 def example(args):
 	cybertron_store_folder(folder)
 	global cybertron
-	if os.path.exists('cybertron.py'): print('cybertron.py already exists, using it.')
-	else: cybertron.set(cybertron_example)
 	assert_ports_clean()
 	print("When you hit enter, I'll start a megatron and open a browser to it.")
 	print("Wait for the megatron master to start.")
@@ -346,7 +307,6 @@ def expect(condition, description, information=None):
 def test(args):
 	cybertron_store_folder(folder)
 	#setup
-	cybertron.set(cybertron_example)
 	invoke('python go.py m0')
 	invoke('python go.py d0')
 	assert_ports_clean()
