@@ -118,11 +118,11 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 	)
 	for i, j in upload.items(True):
 		@util.renderer
-		def master_dest(properties):
+		def master_dest(properties, j=j):
 			return os.path.join(builder_name, str(properties['buildnumber'])+'-constructicon', j)
 		devastator_file_server_port=cybertron['devastator_file_server_port']
 		@util.renderer
-		def url(properties):
+		def url(properties, j=j):
 			return (
 				'http://{{{devastator_host}}}:'+str(devastator_file_server_port)
 				+
