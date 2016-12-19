@@ -262,6 +262,8 @@ def d1(args):
 		args.devastator_slave_name,
 		common.password
 	))
+	with open(os.path.join(path, 'info', 'host'), 'w') as file:
+		file.write(socket.gethostbyname(socket.gethostname()))
 	invoke('buildslave restart {}'.format(path))
 
 def d0(args):
