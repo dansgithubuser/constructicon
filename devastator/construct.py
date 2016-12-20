@@ -229,11 +229,14 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		#builder spec
 		if not isinstance(builder_spec, Config):
 			error('builder spec is not a dict'); continue
-		#slave features
+		#features
 		features=builder_spec.get('features', Config.create({}))
 		if not check(features, 'features', [[check_dict, str, str, 'is not a dict of str']]): continue
-		if intersect(features.dict, base['features']):
-			error('features conflicts with cybertron builder_base features'); continue
+		for k, v in features.items():
+			if k in base['features'] and v!=base['features'][k]: break
+		else: k=None
+		if k!=None:
+			error('feature {}: {} conflicts with cybertron builder_base {}'.format(k, v, base['features'][k])); continue
 		features.update(base['features'])
 		slave_names=[]
 		for slave_name, slave_features in slaves.items():
