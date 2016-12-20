@@ -39,7 +39,7 @@ constructicon={
 		},
 	},
 	'slaves': {
-		'user-slave-1': {'platform': 'snes', 'memory': 'goldfish'},
-		'user-slave-bad': {},
+		'constructicon-user-slave-1': {'platform': 'snes', 'memory': 'goldfish'},
+		'constructicon-user-slave-bad': {},
 	},
 }

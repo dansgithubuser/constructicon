@@ -206,11 +206,19 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		))
 	if not isinstance(constructicon_spec, Config):
 		error('constructicon is not a dict'); continue
+	#slaves
 	slaves=cybertron['slaves']
 	if 'slaves' in constructicon_spec:
-		x={constructicon_name+'-'+i: j for i, j in constructicon_spec['slaves'].items(True)}
-		slaves.update(x)
-		all_slaves.update(x)
+		prefix=constructicon_name+'-'
+		x=constructicon_spec['slaves']
+		for i, j in x.items():
+			if not i.startswith(prefix): break
+		else: i=None
+		if i!=None:
+			error("slave {} must start with {} but doesn't".format(i, prefix)); continue
+		slaves.update(constructicon_spec['slaves'])
+		all_slaves.update(slaves)
+	#builders
 	for builder_name, builder_spec in constructicon_spec['builders'].items(True):
 		#builder name
 		if type(builder_name)!=str:
