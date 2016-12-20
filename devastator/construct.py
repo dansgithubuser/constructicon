@@ -57,6 +57,8 @@ class Config:
 
 	def keys(self): return self.dict.keys()
 
+	def values(self): return self.dict.values()
+
 	def unused(self, prefix=[]):
 		result=[prefix+[k] for k in self.dict if k not in self.visited]
 		def recurse_list(k, v, f):
@@ -268,7 +270,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			[check_dict, str, str, 'is not a dict of str'],
 			[lambda x: all(['..' not in j for i, j in x.items()]), 'destination may not contain ..'],
 		]): continue
-		if intersect(upload.dict, base['upload']):
+		if set(base['upload'].values())&set(upload.values()):
 			error('upload conflicts with cybertron builder_base upload'); continue
 		upload.update(base['upload'])
 		#schedulers
