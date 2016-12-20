@@ -113,7 +113,8 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 		[git_step(i, os.path.join(work_dir, '..', repo_url_to_name(i))) for i in deps]
 		+
 		[common.sane_step(steps.ShellCommand,
-			command=format(commands[i]),
+			name=commands[i][0],
+			command=format(commands[i][1]),
 			workdir=work_dir,
 			env=env,
 		) for i in range(len(commands))]
@@ -181,6 +182,9 @@ def check(spec, key, expectations):
 		if not expectation[0](base[key], *expectation[1:-1]):
 			error('cybertron builder_base '+key+' '+expectation[-1]); return False
 	return True
+
+def number(list, prefix):
+	return [('{} {}'.format(prefix, i+1), v) for i, v in enumerate(list)]
 
 all_builders=[]
 all_schedulers=[]
@@ -257,7 +261,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			[lambda x: type(x)==list, 'is not a list'],
 			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a precommand that is not a str or list of str'],
 		]): continue
-		precommands=base['precommands']+precommands
+		precommands=number(base['precommands'], 'cybertron precommand')+number(precommands, 'precommand')
 		#commands
 		if 'commands' not in builder_spec:
 			error('no commands'); continue
@@ -266,7 +270,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			[lambda x: type(x)==list, 'is not a list'],
 			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a command that is not a str or list of str'],
 		]): continue
-		commands+=base['commands']
+		commands=number(commands, 'command')+number(base['commands'], 'cybertron command')
 		#upload
 		upload=builder_spec.get('upload', Config.create({}))
 		if not check(upload, 'upload', [
