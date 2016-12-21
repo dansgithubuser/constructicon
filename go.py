@@ -265,6 +265,11 @@ def df(args):
 def db(args):
 	webbrowser.open('http://localhost:{}'.format(cybertron['devastator_master_port']))
 
+def f(args):
+	port=cybertron['megatron_master_port' if args.megatron else 'devastator_master_port']
+	forcer=Forcer(cybertron['megatron_hostname'], port, args.builder)
+	forcer.force(parameters=dict(zip(args.key, args.value)))
+
 def example(args):
 	cybertron_store_folder(folder)
 	global cybertron
@@ -418,6 +423,14 @@ subparsers.add_parser('dr', help='devastator master create/restart/reconfig -- u
 subparsers.add_parser('df', help='devastator file server').set_defaults(func=df)
 #browser
 subparsers.add_parser('db', help='devastator master browser').set_defaults(func=db)
+
+#-----force-----#
+subparser=subparsers.add_parser('f', help='force a build')
+subparser.set_defaults(func=f)
+subparser.add_argument('--megatron', '-m', action='store_true', help='force on megatron, default is devastator')
+subparser.add_argument('--builder', '-b', default='megatron-builder', help='which builder to force, default is megatron-builder')
+subparser.add_argument('--key'  , '-k', nargs='+', default=[], help='parameter keys, there should be an equal number of values')
+subparser.add_argument('--value', '-v', nargs='+', default=[], help='parameter values, there should be an equal number of keys')
 
 #-----example-----#
 subparsers.add_parser('example', help='run example').set_defaults(func=example)
