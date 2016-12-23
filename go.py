@@ -191,14 +191,19 @@ class Forcer:
 #=====subfunctions=====#
 def m1(args):
 	cybertron_store_folder(args.cybertron_folder)
-	invoke('buildbot create-master {}'.format(megatron_master_path))
-	invoke('buildslave create-slave {} localhost:{} megatron-slave {}'.format(
-		megatron_slave_path,
-		cybertron['megatron_slave_port'],
-		common.password
-	))
-	invoke('buildbot restart {}'.format(megatron_master_path))
-	invoke('buildslave restart {}'.format(megatron_slave_path))
+	if not args.slave_only:
+		invoke('buildbot create-master {}'.format(megatron_master_path))
+		restart_args=[]
+		if args.foreground: restart_args.append('--nodaemon')
+		restart_args.append(megatron_master_path)
+		invoke('buildbot restart '+' '.join(restart_args))
+	if not args.master_only:
+		invoke('buildslave create-slave {} localhost:{} megatron-slave {}'.format(
+			megatron_slave_path,
+			cybertron['megatron_slave_port'],
+			common.password
+		))
+		invoke('buildslave restart {}'.format(megatron_slave_path))
 
 def m0(args):
 	if os.path.exists(os.path.join(megatron_master_path, 'buildbot.tac')):
@@ -400,6 +405,9 @@ subparsers=parser.add_subparsers()
 subparser=subparsers.add_parser('m1', help='megatron start')
 subparser.set_defaults(func=m1)
 subparser.add_argument('cybertron_folder', help='folder containing cybertron.py')
+subparser.add_argument('--foreground', '-f', action='store_true')
+subparser.add_argument('--master-only', '-m', action='store_true')
+subparser.add_argument('--slave-only', '-s', action='store_true')
 #stop
 subparsers.add_parser('m0', help='megatron stop').set_defaults(func=m0)
 #browser
