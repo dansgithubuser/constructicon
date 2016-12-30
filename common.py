@@ -23,9 +23,9 @@ def sane_step(Step, **kwargs):
 
 def execute(file_name, var):
 	with open(file_name) as file:
-		locals={var: None}
-		exec(file.read(), None, locals)
-		return locals[var]
+		x={var: None}
+		exec(file.read(), x)
+		return x[var]
 
 def constructicon(folder):
 	return execute(os.path.join(folder, 'constructicon.py'), 'constructicon')
