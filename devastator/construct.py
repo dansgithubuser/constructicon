@@ -281,7 +281,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			error('upload conflicts with cybertron builder_base upload'); continue
 		upload.update(base['upload'])
 		#schedulers
-		schedulers=builder_spec.get('schedulers', Config.create({'force': {'type': 'force'}}))
+		schedulers=builder_spec.get('schedulers', Config.create({}))
 		if not check(schedulers, 'schedulers', [
 			[lambda x: isinstance(x, Config), 'is not a dict'],
 			[lambda x: all([type(i)==str for i in x.keys()]), "has a key that isn't a str"],
