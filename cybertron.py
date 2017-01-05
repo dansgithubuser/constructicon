@@ -4,6 +4,7 @@ cybertron={
 		'slave-1': {'platform': 'linux', 'memory': 'goldfish'},
 		'slave-bad': {},
 	},
+	'megatron_hostname': 'localhost',
 	'megatron_master_port': 9120,
 	'megatron_slave_port': 9121,
 	'devastator_master_port': 9122,

@@ -225,7 +225,7 @@ def d1(args):
 	path=os.path.join(devastator_slave_path, args.devastator_slave_name)
 	invoke('buildslave create-slave {} {}:{} {} {}'.format(
 		path,
-		args.megatron_hostname,
+		cybertron['megatron_hostname'],
 		cybertron['devastator_slave_port'],
 		args.devastator_slave_name,
 		common.password
@@ -422,7 +422,6 @@ subparser=subparsers.add_parser('d1', help='devastator slave start')
 subparser.set_defaults(func=d1)
 subparser.add_argument('devastator_slave_name')
 subparser.add_argument('cybertron_folder', help='folder containing cybertron.py')
-subparser.add_argument('--megatron-hostname', '-m', default='localhost')
 #stop
 subparsers.add_parser('d0', help='devastator slave stop').set_defaults(func=d0)
 #recombobulate
