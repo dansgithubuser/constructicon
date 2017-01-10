@@ -191,6 +191,7 @@ all_schedulers=[]
 all_repo_urls=set(global_repo_urls.values())
 all_slaves=cybertron['slaves']
 errors=1
+slave_lock=util.SlaveLock('slave-lock', maxCount=1)
 for constructicon_name, constructicon_spec in global_constructicons.items():
 	constructicon_spec=Config.create(constructicon_spec)
 	git_state=global_git_states[constructicon_name]
@@ -337,6 +338,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			description=global_repo_urls[constructicon_name]+' '+git_state,
 			slavenames=slave_names,
 			factory=f,
+			locks=[slave_lock.access('exclusive')],
 		))
 		all_schedulers.extend(builder_schedulers)
 
