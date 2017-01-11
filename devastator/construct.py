@@ -361,7 +361,12 @@ BuildmasterConfig={
 		showUsersPage=True
 	))],
 	'codebaseGenerator': lambda chdict: chdict['repository'],
-	'change_source': [changes.GitPoller(repourl=i, branches=True, pollInterval=30) for i in all_repo_urls],
+	'change_source': [changes.GitPoller(
+		repourl=i,
+		branches=True,
+		pollInterval=30,
+		workdir='gitpoller-work-'+repo_url_to_name(i)
+	) for i in all_repo_urls],
 	'mergeRequests': False,
 	'debugPassword': 'sesame',
 	'title': 'devastator {{{devastator_git_state}}}',
