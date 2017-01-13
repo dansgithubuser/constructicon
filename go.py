@@ -27,6 +27,10 @@ class Cybertron:
 		self._load()
 		return self.contents[key]
 
+	def __contains__(self, key):
+		self._load()
+		return key in self.contents
+
 	def items(self):
 		self._load()
 		return self.contents.items()
@@ -270,6 +274,40 @@ def df(args):
 def db(args):
 	webbrowser.open('http://localhost:{}'.format(cybertron['devastator_master_port']))
 
+getmailrc_format='''
+[retriever]
+type = SimplePOP3SSLRetriever
+server = pop.gmail.com
+username = {}
+port = 995
+password = {}
+[destination]
+type = Maildir
+path = email/maildir/
+[options]
+read_all = false
+'''
+
+def mail(args):
+	def mkdir(*args):
+		path=os.path.join(*args)
+		if os.path.exists(path): return
+		os.makedirs(path)
+	mkdir('email', 'config')
+	with open(os.path.join('email', 'config', 'getmailrc'), 'w') as file:
+		file.write(getmailrc_format.format(
+			cybertron['email_username'], cybertron['email_password'])
+		)
+	for i in ['new', 'tmp', 'cur']: mkdir('email', 'maildir', i)
+	while True:
+		try: invoke('python '+os.path.join('email', 'getmail', 'getmail')+' --getmaildir email/config')
+		except Exception as e:
+			print(timestamp())
+			import traceback
+			traceback.print_exc(file=sys.stdout)
+		print(timestamp()+' sleeping')
+		time.sleep(30)
+
 def f(args):
 	port=cybertron['megatron_master_port' if args.megatron else 'devastator_master_port']
 	forcer=Forcer(cybertron['megatron_hostname'], port, args.builder)
@@ -430,6 +468,9 @@ subparsers.add_parser('dr', help='devastator master create/restart/reconfig -- u
 subparsers.add_parser('df', help='devastator file server').set_defaults(func=df)
 #browser
 subparsers.add_parser('db', help='devastator master browser').set_defaults(func=db)
+
+#-----mail-----#
+subparsers.add_parser('mail', help='get mail for email-based on-commit scheduling').set_defaults(func=mail)
 
 #-----force-----#
 subparser=subparsers.add_parser('f', help='force a build')
