@@ -9,6 +9,7 @@ from buildbot.plugins import changes, buildslave, schedulers, steps, util
 from buildbot.status import html
 from buildbot.status.web import authz
 from buildbot.schedulers import forcesched
+from twisted.python import log
 
 import calendar, pprint
 
@@ -342,6 +343,23 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		))
 		all_schedulers.extend(builder_schedulers)
 
+git_pollers=[changes.GitPoller(
+	repourl=i,
+	branches=True,
+	workdir='gitpoller-work-'+repo_url_to_name(i)
+) for i in all_repo_urls]
+
+class DevastatorChangeSource(changes.MaildirSource):
+	name='DevastatorChangeSource'
+	def parse(self, m, prefix=None):
+		for i in git_pollers: i.poll()
+		return None
+
+change_sources=git_pollers
+if 'email_username' in cybertron:
+	maildir=os.path.join(folder, '..', '..', 'email', 'maildir')
+	change_sources.append(DevastatorChangeSource(maildir))
+
 BuildmasterConfig={
 	'db': {'db_url': 'sqlite:///state.sqlite'},
 	'slaves': [buildslave.BuildSlave(i, common.password) for i in all_slaves.keys()+['none']],
@@ -361,12 +379,7 @@ BuildmasterConfig={
 		showUsersPage=True
 	))],
 	'codebaseGenerator': lambda chdict: chdict['repository'],
-	'change_source': [changes.GitPoller(
-		repourl=i,
-		branches=True,
-		pollInterval=30,
-		workdir='gitpoller-work-'+repo_url_to_name(i)
-	) for i in all_repo_urls],
+	'change_source': change_sources,
 	'mergeRequests': False,
 	'debugPassword': 'sesame',
 	'title': 'devastator {{{devastator_git_state}}}',
