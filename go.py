@@ -227,6 +227,8 @@ def d1(args):
 	cybertron_store_folder(args.cybertron_folder)
 	if not os.path.exists(devastator_slave_path): os.makedirs(devastator_slave_path)
 	path=os.path.join(devastator_slave_path, args.devastator_slave_name)
+	tac=os.path.join(path, 'buildbot.tac')
+	if os.path.exists(tac): os.remove(tac)
 	invoke('buildslave create-slave {} {}:{} {} {}'.format(
 		path,
 		cybertron['megatron_hostname'],
