@@ -382,6 +382,9 @@ BuildmasterConfig={
 	'change_source': change_sources,
 	'mergeRequests': False,
 	'debugPassword': 'sesame',
+	'changeHorizon': cybertron['horizon'],
+	'buildHorizon': cybertron['horizon'],
+	'eventHorizon': cybertron['horizon'],
 	'title': 'devastator {{{devastator_git_state}}}',
 }
 '''

@@ -10,6 +10,7 @@ cybertron={
 	'devastator_master_port': 9122,
 	'devastator_slave_port': 9123,
 	'devastator_file_server_port': 9124,
+	'horizon': 100,
 	'builder_base': {
 		'features': {'memory': 'goldfish'},
 		'deps': ['https://github.com/dansgithubuser/crangen'],
