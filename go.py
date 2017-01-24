@@ -449,9 +449,9 @@ def test(args):
 		#deps
 		expect(any(['crangen' in i['name'] for i in r['steps']]), 'builder_base dep', pprint.pformat(r))
 		#precommands
-		expect(any([any(['precommand' in j for j in i['text']]) for i in r['steps']]), 'builder_base precommand', pprint.pformat(r))
+		expect(any([any(['cybertron precommand' in i['name']]) for i in r['steps']]), 'builder_base precommand', pprint.pformat(r))
 		#commands
-		expect(any([any(['command' in j for j in i['text']]) for i in r['steps']]), 'builder_base command', pprint.pformat(r))
+		expect(any([any(['cybertron command' in i['name']]) for i in r['steps']]), 'builder_base command', pprint.pformat(r))
 		#upload
 		expect(any(['upload' in i['name'] for i in r['steps']]), 'builder_base upload', pprint.pformat(r))
 	#teardown
