@@ -401,6 +401,7 @@ def render(template, **kwargs):
 	return template
 
 def run(constructicons_override={}):
+	cybertron=common.cybertron(os.path.join(folder, '..'))
 	#collect information
 	start=os.getcwd()
 	os.chdir(os.path.join(folder, 'constructicons'))
@@ -427,7 +428,7 @@ def run(constructicons_override={}):
 		repo_urls=repo_urls,
 		git_states=git_states,
 		devastator_git_state=common.git_state(),
-		devastator_host=socket.gethostbyname(socket.gethostname()),
+		devastator_host=cybertron['megatron_hostname'],
 	))
 	#reset
 	os.chdir(start)
