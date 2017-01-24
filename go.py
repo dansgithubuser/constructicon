@@ -357,23 +357,44 @@ def expect(condition, description, information=None):
 		assert(False)
 
 def test(args):
+	class TestLogger:
+		def enter_test(self, test):
+			self.test=test
+			self.section=''
+			self.log('=')
+		def enter_section(self, section):
+			self.section=section
+			self.log('-')
+		def log(self, separator):
+			x=self.test
+			if self.section: x+=' -- '+self.section
+			print(timestamp()+' '+separator*10+' '+x+' '+separator*10)
+	tl=TestLogger()
 	cybertron_store_folder(folder)
 	#setup
+	tl.enter_test('setup')
+	print('stamp is {}'.format(stamp))
+	tl.enter_section('freshen')
 	invoke('python go.py m0')
 	invoke('python go.py d0')
 	assert_ports_clean()
 	time.sleep(1)
+	tl.enter_section('start megatron')
 	invoke('python go.py m1 {}'.format(folder))
 	m_forcer=Forcer('localhost', cybertron['megatron_master_port'], 'megatron-builder')
+	tl.enter_section('start devastator master')
 	m_forcer.force({'constructicon_repo_url': 'https://github.com/dansgithubuser/constructicon', 'reason': 'test setup'})
 	m_forcer.wait()
 	r=m_forcer.json_request(-1)
 	expect(r['results']==0, 'setup - megatron build succeeded')
+	tl.enter_section('start devastator slave')
 	invoke('python go.py d1 slave-1 {}'.format(folder))
 	basic_forcer=Forcer('localhost', cybertron['devastator_master_port'], 'constructicon-basic')
 	#test
 	if re.match(args.regex, 'reconfig'):
-		#modify constructicon.py
+		tl.enter_test('reconfig')
+		#
+		tl.enter_section('modify constructicon.py')
 		constructicon=common.constructicon(folder)
 		constructicon['builders']['sleep']['commands'].append('python -c "import time; time.sleep(1)"')
 		os.chdir(os.path.join('devastator', 'constructicons', 'constructicon'))
@@ -382,29 +403,37 @@ def test(args):
 		invoke('git add -u :/')
 		invoke('git commit -m "test reconfig"')
 		os.chdir(folder)
-		#request original build
+		#
+		tl.enter_section('request original build')
 		sleep_forcer=Forcer('localhost', cybertron['devastator_master_port'], 'constructicon-sleep')
 		sleep_forcer.force({'reason': 'test reconfig original'})
-		#reconfig
+		#
+		tl.enter_section('reconfig')
 		m_forcer.force({'constructicon_repo_url': '', 'reason': 'test reconfig reconfig'})
 		m_forcer.wait()
-		#request reconfigged build
+		#
+		tl.enter_section('request reconfigged build')
 		sleep_forcer.force({'reason': 'test reconfig reconfigged'})
+		tl.enter_section('wait for builds')
 		sleep_forcer.wait_all()
-		#check stuff
+		#
+		tl.enter_section('check stuff')
 		r1=sleep_forcer.json_request(-1)
 		r2=sleep_forcer.json_request(-2)
 		expect(stamp in r1['reason'], 'reconfig - reconfigged build happened')
 		expect(r1['results']==0, 'reconfig - reconfigged build succeeded')
 		expect(stamp in r2['reason'], 'reconfig - original build happened')
 		expect(r2['results']==0, 'reconfig - original build succeeded')
-		expect(len(r1['steps'])==len(r2['steps'])+1, 'reconfig - reconfigged build had an extra step')
+		expect(len(r1['steps'])==len(r2['steps'])+1, 'reconfig - reconfigged build had an extra step', pprint.pformat(r1)+'\n\n'+pprint.pformat(r2))
 	if re.match(args.regex, 'user-slave'):
+		tl.enter_test('user-slave')
 		invoke('python go.py d1 constructicon-user-slave-1 {}'.format(folder))
 		r=basic_forcer.json_request_generic('')
 		expect(r['slaves']['constructicon-user-slave-1']['connected'], 'user-slave - user slave connected to devastator', pprint.pformat(r))
-	if re.match(args.regex, 'builder_base'):
-		#---builder---#
+	if re.match(args.regex, 'builder-base'):
+		tl.enter_test('builder-base')
+		#
+		tl.enter_section('builder')
 		r=basic_forcer.json_request_generic('')['builders']['constructicon-basic']
 		#features
 		expect('slave-bad' not in r['slaves'], 'no bad slave', pprint.pformat(r))
@@ -412,8 +441,9 @@ def test(args):
 		#schedulers
 		expect('constructicon-basic-force-cybertron' in r['schedulers'], 'builder_base force scheduler', pprint.pformat(r))
 		expect('constructicon-basic-commit-cybertron' in r['schedulers'], 'builder_base commit scheduler', pprint.pformat(r))
-		#---build---#
-		basic_forcer.force({'reason': 'test builder_base'})
+		#
+		tl.enter_section('build')
+		basic_forcer.force({'reason': 'test builder-base'})
 		basic_forcer.wait()
 		r=basic_forcer.json_request(-1)
 		#deps
