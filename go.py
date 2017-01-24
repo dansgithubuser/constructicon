@@ -196,26 +196,26 @@ class Forcer:
 def m1(args):
 	cybertron_store_folder(args.cybertron_folder)
 	if not args.slave_only:
-		invoke('buildbot create-master {}'.format(megatron_master_path))
+		invoke('buildbot --verbose create-master {}'.format(megatron_master_path))
 		restart_args=[]
 		if args.foreground: restart_args.append('--nodaemon')
 		restart_args.append(megatron_master_path)
-		invoke('buildbot restart '+' '.join(restart_args))
+		invoke('buildbot --verbose restart '+' '.join(restart_args))
 	if not args.master_only:
-		invoke('buildslave create-slave {} localhost:{} megatron-slave {}'.format(
+		invoke('buildslave --verbose create-slave {} localhost:{} megatron-slave {}'.format(
 			megatron_slave_path,
 			cybertron['megatron_slave_port'],
 			common.password
 		))
-		invoke('buildslave restart {}'.format(megatron_slave_path))
+		invoke('buildslave --verbose restart {}'.format(megatron_slave_path))
 
 def m0(args):
 	if os.path.exists(os.path.join(megatron_master_path, 'buildbot.tac')):
-		invoke('buildbot stop {}'.format(megatron_master_path))
+		invoke('buildbot --verbose stop {}'.format(megatron_master_path))
 	if os.path.exists(os.path.join(megatron_slave_path, 'buildbot.tac')):
-		invoke('buildslave stop {}'.format(megatron_slave_path))
+		invoke('buildslave --verbose stop {}'.format(megatron_slave_path))
 	if os.path.exists(os.path.join(devastator_master_path, 'buildbot.tac')):
-		invoke('buildbot stop {}'.format(devastator_master_path))
+		invoke('buildbot --verbose stop {}'.format(devastator_master_path))
 
 def mb(args):
 	webbrowser.open('http://localhost:{}'.format(cybertron['megatron_master_port']))
@@ -229,7 +229,7 @@ def d1(args):
 	path=os.path.join(devastator_slave_path, args.devastator_slave_name)
 	tac=os.path.join(path, 'buildbot.tac')
 	if os.path.exists(tac): os.remove(tac)
-	invoke('buildslave create-slave {} {}:{} {} {}'.format(
+	invoke('buildslave --verbose create-slave {} {}:{} {} {}'.format(
 		path,
 		cybertron['megatron_hostname'],
 		cybertron['devastator_slave_port'],
@@ -238,14 +238,14 @@ def d1(args):
 	))
 	with open(os.path.join(path, 'info', 'host'), 'w') as file:
 		file.write(socket.gethostbyname(socket.gethostname()))
-	invoke('buildslave restart {}'.format(path))
+	invoke('buildslave --verbose restart {}'.format(path))
 
 def d0(args):
 	if os.path.exists(devastator_slave_path):
 		os.chdir(devastator_slave_path)
 		import glob
 		for i in glob.glob('*'):
-			invoke('buildslave stop {}'.format(i))
+			invoke('buildslave --verbose stop {}'.format(i))
 
 def dr(args):
 	os.chdir(os.path.join('devastator', 'master'))
