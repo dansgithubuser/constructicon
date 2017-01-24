@@ -113,7 +113,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 		+
 		[git_step(i, os.path.join(work_dir, '..', repo_url_to_name(i))) for i in deps]
 		+
-		[common.sane_step(steps.ShellCommand,
+		[common.sane_step(steps.Compile,
 			name=commands[i][0],
 			command=format(commands[i][1]),
 			workdir=work_dir,
