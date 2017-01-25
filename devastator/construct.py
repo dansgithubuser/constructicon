@@ -78,7 +78,13 @@ def repo_url_to_name(repo_url):
 
 def factory(constructicon_name, builder_name, deps, commands, upload):
 	deps=sorted(deps)
-	work_dir=os.path.join('..', 'constructicons', constructicon_name, constructicon_name)
+	def work_dir_renderer(*suffix):
+		@util.renderer
+		def work_dir(properties):
+			sep='/'
+			if all_slaves[properties['slavename']].get('platform', 0)=='windows': sep='\\'
+			return sep.join(('..', 'constructicons', constructicon_name, constructicon_name)+suffix)
+		return work_dir
 	result=util.BuildFactory()
 	def git_step(repo_url, work_dir):
 		return common.sane_step(steps.Git,
@@ -108,15 +114,15 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 				property='git_state',
 				value=global_git_states[constructicon_name],
 			),
-			git_step(global_repo_urls[constructicon_name], work_dir),
+			git_step(global_repo_urls[constructicon_name], work_dir_renderer()),
 		]
 		+
-		[git_step(i, os.path.join(work_dir, '..', repo_url_to_name(i))) for i in deps]
+		[git_step(i, work_dir_renderer('..', repo_url_to_name(i))) for i in deps]
 		+
 		[common.sane_step(steps.Compile,
 			name=commands[i][0],
 			command=format(commands[i][1]),
-			workdir=work_dir,
+			workdir=work_dir_renderer(),
 			env=env,
 		) for i in range(len(commands))]
 	)
@@ -136,7 +142,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 			slavesrc=i,
 			masterdest=master_dest,
 			url=url,
-			workdir=work_dir
+			workdir=work_dir_renderer()
 		)
 		result.addStep(step)
 	return result
