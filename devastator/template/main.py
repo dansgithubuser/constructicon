@@ -172,7 +172,7 @@ def get_base(key, default):
 	return Config.create(result)
 
 base={
-	'features': get_base('features', {}),
+	'accept': get_base('accept', 'True'),
 	'deps': get_base('deps', []),
 	'precommands': get_base('precommands', []),
 	'commands': get_base('commands', []),
@@ -239,21 +239,15 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		#builder spec
 		if not isinstance(builder_spec, Config):
 			error('builder spec is not a dict'); continue
-		#features
-		features=builder_spec.get('features', Config.create({}))
-		if not check(features, 'features', [[check_dict, str, str, 'is not a dict of str']]): continue
-		for k, v in features.items():
-			if k in base['features'] and v!=base['features'][k]: break
-		else: k=None
-		if k!=None:
-			error('feature {}: {} conflicts with cybertron builder_base {}'.format(k, v, base['features'][k])); continue
-		features.update(base['features'])
+		#get what slaves this builder accepts
+		accept=builder_spec.get('accept', 'True')
+		if not check(accept, 'accept', [[str, 'is not a str']]): continue
 		slave_names=[]
-		for slave_name, slave_features in slaves.items():
-			for feature, value in features.items(True):
-				if feature not in slave_features: break
-				if slave_features[feature]!=value: break
-			else: slave_names.append(slave_name)
+		for slave_name, features in slaves.items():
+			try:
+				if eval(accept) and eval(base['accept']):
+					slave_names.append(slave_name)
+			except: pass
 		if not len(slave_names):
 			error('no matching slaves'); continue
 		#deps

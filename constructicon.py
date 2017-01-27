@@ -2,7 +2,7 @@
 constructicon={
 	'builders': {
 		'basic': {
-			'features': {'platform': 'linux'},
+			'accept': "features['platform']=='linux'",
 			'commands': ['python go.py -h'],
 			'upload': {'readme.md': 'readme-dest.md'},
 		},
@@ -34,7 +34,7 @@ constructicon={
 			},
 		},
 		'user-slave': {
-			'features': {'platform': 'snes', 'memory': 'goldfish'},
+			'accept': "features['platform']=='snes' and features['memory']=='goldfish'",
 			'commands': ['python go.py -h'],
 		},
 	},

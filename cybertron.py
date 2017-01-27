@@ -12,7 +12,7 @@ cybertron={
 	'devastator_file_server_port': 9124,
 	'horizon': 100,
 	'builder_base': {
-		'features': {'memory': 'goldfish'},
+		'accept': "features['memory']=='goldfish'",
 		'deps': ['https://github.com/dansgithubuser/crangen'],
 		'precommands': ['echo precommand from cybertron'],
 		'commands': ['echo command from cybertron'],
