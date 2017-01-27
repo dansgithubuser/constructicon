@@ -445,8 +445,8 @@ def test(args):
 		expect('slave-bad' not in r['slaves'], 'no bad slave', pprint.pformat(r))
 		expect('user-slave-bad' not in r['slaves'], 'no bad user slave', pprint.pformat(r))
 		#schedulers
-		expect('constructicon-basic-force-cybertron' in r['schedulers'], 'builder_base force scheduler', pprint.pformat(r))
-		expect('constructicon-basic-commit-cybertron' in r['schedulers'], 'builder_base commit scheduler', pprint.pformat(r))
+		expect('constructicon-force-cybertron' in r['schedulers'], 'builder_base force scheduler', pprint.pformat(r))
+		expect('constructicon-commit-cybertron' in r['schedulers'], 'builder_base commit scheduler', pprint.pformat(r))
 		#
 		tl.enter_section('build')
 		basic_forcer.force({'reason': 'test builder-base'})

@@ -17,15 +17,16 @@ cybertron={
 		'precommands': ['echo precommand from cybertron'],
 		'commands': ['echo command from cybertron'],
 		'upload': {'go.py': 'go.py'},
-		'schedulers': {
-			'force-cybertron': {
-				'type': 'force',
-				'parameters': {'tea': 'secrets'},
-			},
-			'commit-cybertron': {
-				'type': 'commit',
-				'branch_regex': 'test-cybertron',
-			},
+		'schedulers': ['force-cybertron', 'commit-cybertron'],
+	},
+	'schedulers': {
+		'force-cybertron': {
+			'type': 'force',
+			'parameters': {'tea': 'secrets'},
+		},
+		'commit-cybertron': {
+			'type': 'commit',
+			'branch_regex': 'test-cybertron',
 		},
 	},
 }

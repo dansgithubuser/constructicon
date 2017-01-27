@@ -9,7 +9,7 @@ from buildbot.status.web import authz
 from buildbot.schedulers import forcesched
 from twisted.python import log
 
-import calendar, pprint
+import calendar, collections, pprint
 
 ForceScheduler=schedulers.ForceScheduler
 Nightly=schedulers.Nightly
@@ -177,12 +177,13 @@ def get_base(key, default):
 	return Config.create(result)
 
 base={
-	'accept': get_base('accept', 'True'),
-	'deps': get_base('deps', []),
-	'precommands': get_base('precommands', []),
-	'commands': get_base('commands', []),
-	'upload': get_base('upload', {}),
-	'schedulers': get_base('schedulers', {}),
+	'builder_base accept': get_base('accept', 'True'),
+	'builder_base deps': get_base('deps', []),
+	'builder_base precommands': get_base('precommands', []),
+	'builder_base commands': get_base('commands', []),
+	'builder_base upload': get_base('upload', {}),
+	'builder_base schedulers': get_base('schedulers', {}),
+	'schedulers': Config.create(cybertron.get('schedulers', {})),
 }
 
 def check(spec, key, expectations):
@@ -190,18 +191,19 @@ def check(spec, key, expectations):
 		if not expectation[0](spec, *expectation[1:-1]):
 			error(key+' '+expectation[-1]); return False
 		if not expectation[0](base[key], *expectation[1:-1]):
-			error('cybertron builder_base '+key+' '+expectation[-1]); return False
+			error('cybertron '+key+' '+expectation[-1]); return False
 	return True
 
 def number(list, prefix):
 	return [('{} {}'.format(prefix, i+1), v) for i, v in enumerate(list)]
 
-all_builders=[]
-all_schedulers=[]
 all_repo_urls=set(global_repo_urls.values())
 all_slaves=cybertron['slaves']
-errors=1
+all_builders=[]
+all_schedulers=[]
+scheduler_to_builders=collections.defaultdict(list)
 slave_lock=util.SlaveLock('slave-lock', maxCount=1)
+errors=1
 for constructicon_name, constructicon_spec in global_constructicons.items():
 	constructicon_spec=Config.create(constructicon_spec)
 	git_state=global_git_states[constructicon_name]
@@ -221,6 +223,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			name=name+'-force',
 			builderNames=[name],
 		))
+	def full_scheduler_name(name): return constructicon_name+'-'+name
 	if not isinstance(constructicon_spec, Config):
 		error('constructicon is not a dict'); continue
 	#slaves
@@ -236,6 +239,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		slaves.update(constructicon_spec['slaves'])
 		all_slaves.update(slaves)
 	#builders
+	all_deps=set()
 	for builder_name, builder_spec in constructicon_spec['builders'].items(True):
 		#builder name
 		if type(builder_name)!=str:
@@ -246,92 +250,53 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			error('builder spec is not a dict'); continue
 		#get what slaves this builder accepts
 		accept=builder_spec.get('accept', 'True')
-		if not check(accept, 'accept', [[str, 'is not a str']]): continue
+		if not check(accept, 'builder_base accept', [[str, 'is not a str']]): continue
 		slave_names=[]
 		for slave_name, features in slaves.items():
 			try:
-				if eval(accept) and eval(base['accept']):
+				if eval(accept) and eval(base['builder_base accept']):
 					slave_names.append(slave_name)
 			except: pass
 		if not len(slave_names):
 			error('no matching slaves'); continue
 		#deps
 		deps=builder_spec.get('deps', [])
-		if not check(deps, 'deps', [[check_list, str, 'is not a list of str']]): continue
-		deps+=[i for i in base['deps'] if i not in deps]
+		if not check(deps, 'builder_base deps', [[check_list, str, 'is not a list of str']]): continue
+		deps+=[i for i in base['builder_base deps'] if i not in deps]
 		all_repo_urls.update(deps)
+		all_deps.update(deps)
 		#precommands
 		precommands=builder_spec.get('precommands', [])
-		if not check(precommands, 'precommands', [
+		if not check(precommands, 'builder_base precommands', [
 			[lambda x: type(x)==list, 'is not a list'],
 			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a precommand that is not a str or list of str'],
 		]): continue
-		precommands=number(base['precommands'], 'cybertron precommand')+number(precommands, 'precommand')
+		precommands=number(base['builder_base precommands'], 'cybertron precommand')+number(precommands, 'precommand')
 		#commands
 		if 'commands' not in builder_spec:
 			error('no commands'); continue
 		commands=builder_spec['commands']
-		if not check(commands, 'commands', [
+		if not check(commands, 'builder_base commands', [
 			[lambda x: type(x)==list, 'is not a list'],
 			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a command that is not a str or list of str'],
 		]): continue
-		commands=number(commands, 'command')+number(base['commands'], 'cybertron command')
+		commands=number(commands, 'command')+number(base['builder_base commands'], 'cybertron command')
 		#upload
 		upload=builder_spec.get('upload', Config.create({}))
-		if not check(upload, 'upload', [
+		if not check(upload, 'builder_base upload', [
 			[check_dict, str, str, 'is not a dict of str'],
 			[lambda x: all(['..' not in j for i, j in x.items()]), 'destination may not contain ..'],
 		]): continue
-		if set(base['upload'].values())&set(upload.values()):
+		if set(base['builder_base upload'].values())&set(upload.values()):
 			error('upload conflicts with cybertron builder_base upload'); continue
-		upload.update(base['upload'])
+		upload.update(base['builder_base upload'])
 		#schedulers
-		schedulers=builder_spec.get('schedulers', Config.create({}))
-		if not check(schedulers, 'schedulers', [
-			[lambda x: isinstance(x, Config), 'is not a dict'],
-			[lambda x: all([type(i)==str for i in x.keys()]), "has a key that isn't a str"],
-			[lambda x: all([isinstance(j, Config) for i, j in x.items()]), "has a value that isn't a dict"],
-			[lambda x: all(['type' in j.keys() for i, j in x.items()]), 'contains a scheduler that is missing a type specification'],
-			[lambda x: all([j['type'] in ['force', 'time', 'commit'] for i, j in x.items()]), 'contains a scheduler that has an unknown type specification'],
+		schedulers=builder_spec.get('schedulers', [])
+		if not check(schedulers, 'builder_base schedulers', [
+			[check_list, str, 'is not a list of str']
 		]): continue
-		if intersect(schedulers, base['schedulers']):
-			error('schedulers conflicts with cybertron builder_base schedulers'); continue
-		schedulers.update(base['schedulers'])
-		builder_schedulers=[]
-		for name, spec in schedulers.items(True):
-			scheduler_args={}
-			#name
-			scheduler_args['name']=builder_name+'-'+name
-			#builderNames
-			scheduler_args['builderNames']=[builder_name]
-			#trigger
-			if spec['type']=='time':
-				scheduler_args['month']=spec.get('month', '*')
-				scheduler_args['dayOfMonth']=spec.get('day-of-month', '*')
-				scheduler_args['dayOfWeek']=spec.get('day-of-week', '*')
-				scheduler_args['hour']=spec.get('hour', 0)
-				scheduler_args['minute']=spec.get('minute', 0)
-				scheduler_args['branch']='master'
-			elif spec['type']=='commit':
-				scheduler_args['change_filter']=util.ChangeFilter(branch_re=spec.get('branch_regex', '.*'))
-			#codebases
-			x=[global_repo_urls[constructicon_name]]+deps
-			if spec['type']=='force':
-				scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=i) for i in x]
-			else:
-				scheduler_args['codebases']={i: {'repository': i} for i in x}
-			#parameters
-			parameters=spec.get('parameters', Config.create({}))
-			if spec['type']=='force':
-				scheduler_args['properties']=[util.StringParameter(name=parameter_prefix+i, default=j) for i, j in parameters.items(True)]
-			else:
-				scheduler_args['properties']={parameter_prefix+i: str(j) for i, j in parameters.items(True)}
-			#append
-			builder_schedulers.append({
-				'force': ForceScheduler,
-				'time': Nightly,
-				'commit': AnyBranchScheduler
-			}[spec['type']](**scheduler_args))
+		schedulers=set(schedulers+base['builder_base schedulers'])
+		for i in schedulers: scheduler_to_builders[full_scheduler_name(i)].append(builder_name)
 		#append
 		f=factory(constructicon_name, builder_name, deps, precommands+commands, upload)
 		unused=builder_spec.unused()
@@ -344,7 +309,52 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			factory=f,
 			locks=[slave_lock.access('exclusive')],
 		))
-		all_schedulers.extend(builder_schedulers)
+	#schedulers
+	schedulers=constructicon_spec.get('schedulers', Config.create({}))
+	if not check(schedulers, 'schedulers', [
+		[lambda x: isinstance(x, Config), 'is not a dict'],
+		[lambda x: all([type(i)==str for i in x.keys()]), "has a key that isn't a str"],
+		[lambda x: all([isinstance(j, Config) for i, j in x.items()]), "has a value that isn't a dict"],
+		[lambda x: all(['type' in j.keys() for i, j in x.items()]), 'contains a scheduler that is missing a type specification'],
+		[lambda x: all([j['type'] in ['force', 'time', 'commit'] for i, j in x.items()]), 'contains a scheduler that has an unknown type specification'],
+	]): continue
+	if intersect(schedulers, base['schedulers']):
+		error('schedulers conflicts with cybertron schedulers'); continue
+	schedulers.update(base['schedulers'])
+	for name, spec in schedulers.items(True):
+		scheduler_args={}
+		#name
+		scheduler_args['name']=full_scheduler_name(name)
+		#builderNames
+		scheduler_args['builderNames']=scheduler_to_builders[scheduler_args['name']]
+		#trigger
+		if spec['type']=='time':
+			scheduler_args['month']=spec.get('month', '*')
+			scheduler_args['dayOfMonth']=spec.get('day-of-month', '*')
+			scheduler_args['dayOfWeek']=spec.get('day-of-week', '*')
+			scheduler_args['hour']=spec.get('hour', 0)
+			scheduler_args['minute']=spec.get('minute', 0)
+			scheduler_args['branch']='master'
+		elif spec['type']=='commit':
+			scheduler_args['change_filter']=util.ChangeFilter(branch_re=spec.get('branch_regex', '.*'))
+		#codebases
+		x=[global_repo_urls[constructicon_name]]+list(all_deps)
+		if spec['type']=='force':
+			scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=i) for i in x]
+		else:
+			scheduler_args['codebases']={i: {'repository': i} for i in x}
+		#parameters
+		parameters=spec.get('parameters', Config.create({}))
+		if spec['type']=='force':
+			scheduler_args['properties']=[util.StringParameter(name=parameter_prefix+i, default=j) for i, j in parameters.items(True)]
+		else:
+			scheduler_args['properties']={parameter_prefix+i: str(j) for i, j in parameters.items(True)}
+		#append
+		all_schedulers.append({
+			'force': ForceScheduler,
+			'time': Nightly,
+			'commit': AnyBranchScheduler
+		}[spec['type']](**scheduler_args))
 
 git_pollers=[ConstructiconGitPoller(
 	repo_url=i,
@@ -362,6 +372,8 @@ change_sources=git_pollers
 if 'email_username' in cybertron:
 	maildir=os.path.join(folder, '..', '..', 'email', 'maildir')
 	change_sources.append(DevastatorChangeSource(maildir))
+
+log.msg('devastator schedulers:\n'+pprint.pformat({i.name: i.builderNames for i in all_schedulers}))
 
 BuildmasterConfig={
 	'db': {'db_url': 'sqlite:///state.sqlite'},
