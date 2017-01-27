@@ -418,8 +418,8 @@ def test(args):
 		sleep_forcer.wait_all()
 		#
 		tl.enter_section('check stuff')
-		r1=sleep_forcer.json_request(-1)
 		r2=sleep_forcer.json_request(-2)
+		r1=sleep_forcer.json_request(-1)
 		expect(stamp in r1['reason'], 'reconfig - reconfigged build happened')
 		expect(r1['results']==0, 'reconfig - reconfigged build succeeded')
 		expect(stamp in r2['reason'], 'reconfig - original build happened')
