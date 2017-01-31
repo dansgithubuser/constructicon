@@ -105,7 +105,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 			common.sane_step(steps.SetProperty,
 				name='devastator git state',
 				property='devastator_git_state',
-				value='{{{devastator_git_state}}}',
+				value={{{devastator_git_state}}},
 			),
 			common.sane_step(steps.SetProperty,
 				name='constructicon git state',
@@ -132,7 +132,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 		@util.renderer
 		def url(properties, j=j):
 			return (
-				'http://{{{devastator_host}}}:'+str(devastator_file_server_port)
+				'http://{}:{}'.format({{{devastator_host}}}, devastator_file_server_port)
 				+
 				'/'+builder_name+'/'+str(properties['buildnumber'])+'-constructicon'+'/'+j
 			)
@@ -383,5 +383,5 @@ BuildmasterConfig={
 	'changeHorizon': cybertron['horizon'],
 	'buildHorizon': cybertron['horizon'],
 	'eventHorizon': cybertron['horizon'],
-	'title': 'devastator {{{devastator_git_state}}}',
+	'title': 'devastator {}'.format({{{devastator_git_state}}}),
 }

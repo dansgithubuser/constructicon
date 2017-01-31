@@ -8,7 +8,8 @@ import common
 import glob, os, socket, subprocess
 
 def render(template, **kwargs):
-	for i, j in kwargs.items(): template=template.replace('{{{'+i+'}}}', str(j))
+	import pprint
+	for i, j in kwargs.items(): template=template.replace('{{{'+i+'}}}', pprint.pformat(j))
 	return template
 
 def run(constructicons_override={}):
@@ -23,6 +24,7 @@ def run(constructicons_override={}):
 	assert len(g)
 	for i in g:
 		name=os.path.split(i)[0]
+		print('parsing constructicon {}'.format(name))
 		constructicons[name]=common.constructicon(name)
 		os.chdir(name)
 		repo_urls[name]=subprocess.check_output('git config --get remote.origin.url', shell=True).strip()
