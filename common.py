@@ -22,10 +22,13 @@ def sane_step(Step, **kwargs):
 	return Step(**kwargs)
 
 def execute(file_name, var):
-	with open(file_name) as file:
-		x={var: None}
-		exec(file.read(), x)
-		return x[var]
+	with open(file_name) as file: contents=file.read()
+	x={var: None}
+	try: exec(contents, x)
+	except:
+		print('exception raised while executing {}'.format(file_name))
+		raise
+	return x[var]
 
 def constructicon(folder):
 	return execute(os.path.join(folder, 'constructicon.py'), 'constructicon')

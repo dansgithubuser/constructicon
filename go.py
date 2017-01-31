@@ -312,6 +312,12 @@ def mail(args):
 		print(timestamp()+' sleeping')
 		time.sleep(30)
 
+def check(args):
+	cybertron_store_folder(args.cybertron_folder)
+	sys.path.append('devastator')
+	import construct
+	construct.run([args.path])
+
 def f(args):
 	port=cybertron['megatron_master_port' if args.megatron else 'devastator_master_port']
 	forcer=Forcer(cybertron['megatron_hostname'], port, args.builder)
@@ -505,6 +511,12 @@ subparsers.add_parser('db', help='devastator master browser').set_defaults(func=
 
 #-----mail-----#
 subparsers.add_parser('mail', help='get mail for email-based on-commit scheduling').set_defaults(func=mail)
+
+#-----check-----#
+subparser=subparsers.add_parser('check', help='check a constructicon.py')
+subparser.set_defaults(func=check)
+subparser.add_argument('path', help='folder containing constructicon.py')
+subparser.add_argument('cybertron_folder', help='folder containing cybertron.py')
 
 #-----force-----#
 subparser=subparsers.add_parser('f', help='force a build')

@@ -12,15 +12,18 @@ def render(template, **kwargs):
 	for i, j in kwargs.items(): template=template.replace('{{{'+i+'}}}', pprint.pformat(j))
 	return template
 
-def run(constructicons_override={}):
+def run(paths=None):
 	cybertron=common.cybertron(os.path.join(folder, '..'))
 	#collect information
 	start=os.getcwd()
-	os.chdir(os.path.join(folder, 'constructicons'))
 	constructicons={}
 	repo_urls={}
 	git_states={}
-	g=glob.glob(os.path.join('*', 'constructicon.py'))
+	if paths==None:
+		os.chdir(os.path.join(folder, 'constructicons'))
+		g=glob.glob(os.path.join('*', 'constructicon.py'))
+	else:
+		g=[os.path.join(i, 'constructicon.py') for i in paths]
 	assert len(g)
 	for i in g:
 		name=os.path.split(i)[0]
@@ -31,8 +34,7 @@ def run(constructicons_override={}):
 		git_states[name]=common.git_state()
 		print('constructing constructicon - commit: {}, repo: {} '.format(git_states[name], name))
 		os.chdir('..')
-	constructicons.update(constructicons_override)
-	os.chdir('..')
+	os.chdir(folder)
 	#make master
 	def read(subtemplate):
 		with open(os.path.join(folder, 'template', subtemplate)) as file:
