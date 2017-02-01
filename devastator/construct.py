@@ -13,7 +13,7 @@ def render(template, **kwargs):
 	return template
 
 def run(paths=None):
-	cybertron=common.cybertron(os.path.join(folder, '..'))
+	cybertron=common.cybertron()
 	#collect information
 	start=os.getcwd()
 	constructicons={}
@@ -48,6 +48,7 @@ def run(paths=None):
 		git_states=git_states,
 		devastator_git_state=common.git_state(),
 		devastator_host=cybertron['megatron_hostname'],
+		cybertron_git_state=common.cybertron_git_state(),
 	))
 	#reset
 	os.chdir(start)

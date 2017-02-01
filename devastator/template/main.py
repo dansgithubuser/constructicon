@@ -15,7 +15,7 @@ ForceScheduler=schedulers.ForceScheduler
 Nightly=schedulers.Nightly
 AnyBranchScheduler=schedulers.AnyBranchScheduler
 
-cybertron=common.cybertron(os.path.join(folder, '..', '..'))
+cybertron=common.cybertron()
 
 parameter_prefix='parameter-'
 
@@ -108,7 +108,12 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 				value={{{devastator_git_state}}},
 			),
 			common.sane_step(steps.SetProperty,
-				name='constructicon git state',
+				name='cybertron git state',
+				property='cybertron_git_state',
+				value={{{cybertron_git_state}}},
+			),
+			common.sane_step(steps.SetProperty,
+				name='git state',
 				property='git_state',
 				value=global_git_states[constructicon_name],
 			),
@@ -334,7 +339,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			error('unused configuration keys\n'+pprint.pformat(unused)); continue
 		all_builders.append(util.BuilderConfig(
 			name=builder_name,
-			description=global_repo_urls[constructicon_name]+' '+git_state,
+			description=global_repo_urls[constructicon_name]+' '+git_state+' on cybertron '+common.cybertron_git_state()+' in devastator '+common.git_state(),
 			slavenames=slave_names,
 			factory=f,
 			locks=[slave_lock.access('exclusive')],
@@ -383,5 +388,5 @@ BuildmasterConfig={
 	'changeHorizon': cybertron['horizon'],
 	'buildHorizon': cybertron['horizon'],
 	'eventHorizon': cybertron['horizon'],
-	'title': 'devastator {}'.format({{{devastator_git_state}}}),
+	'title': 'devastator {} on cybertron {}'.format({{{devastator_git_state}}}, {{{cybertron_git_state}}}),
 }

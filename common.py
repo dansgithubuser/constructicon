@@ -1,5 +1,7 @@
 import os, subprocess
 
+folder=os.path.split(os.path.realpath(__file__))[0]
+
 password='uuvdj_ksdjcls2dnwzxo'
 
 def repo_url_to_name(repo_url):
@@ -33,7 +35,15 @@ def execute(file_name, var):
 def constructicon(folder):
 	return execute(os.path.join(folder, 'constructicon.py'), 'constructicon')
 
-def cybertron(folder):
-	with open(os.path.join(folder, 'cybertron.txt')) as file:
-		cybertron_folder=file.read()
-	return execute(os.path.join(cybertron_folder, 'cybertron.py'), 'cybertron')
+def cybertron_folder():
+	with open(os.path.join(folder, 'cybertron.txt')) as file: return file.read()
+
+def cybertron():
+	return execute(os.path.join(cybertron_folder(), 'cybertron.py'), 'cybertron')
+
+def cybertron_git_state():
+	start=os.getcwd()
+	os.chdir(cybertron_folder())
+	result=git_state()
+	os.chdir(start)
+	return result

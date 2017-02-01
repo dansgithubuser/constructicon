@@ -36,7 +36,7 @@ class Cybertron:
 		return self.contents.items()
 
 	def _load(self):
-		if not self.contents: self.contents=common.cybertron(folder)
+		if not self.contents: self.contents=common.cybertron()
 
 cybertron=Cybertron()
 
