@@ -38,7 +38,7 @@ class ConstructiconGitPoller(buildbot.changes.base.PollingChangeSource, buildbot
 	@defer.inlineCallbacks
 	def poll(self):
 		if not os.path.exists(os.path.join(self.work_dir, '.git')):
-			yield self._vc_cmd('clone', [self.repo_url, self.work_dir], '..')
+			yield self._vc_cmd('clone', ['--no-checkout', self.repo_url, self.work_dir], '..')
 		yield self._vc_cmd('fetch')
 		branches=yield self._get_branches()
 		for i in branches:
