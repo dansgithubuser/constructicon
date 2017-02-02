@@ -79,37 +79,34 @@ class ConstructiconGitPoller(buildbot.changes.base.PollingChangeSource, buildbot
 	@defer.inlineCallbacks
 	def _process_changes(self, rev, branch):
 		if branch not in self.branch_to_last_rev: return
-		new_revs=yield self._vc_cmd('log', ['--format=%H', '{}..{}'.format(self.branch_to_last_rev[branch], rev), '--'])
-		new_revs=new_revs.split()
-		new_revs.reverse()
-		if len(new_revs): log.msg('git poller: processing {} changes: {} from {} branch {}'.format(len(new_revs), new_revs, self.repo_url, branch))
-		for i in new_revs:
-			dl=defer.DeferredList([
-				self._get_commit_timestamp(i),
-				self._get_commit_author(i),
-				self._get_commit_files(i),
-				self._get_commit_comments(i),
-			], consumeErrors=True)
-			results=yield dl
-			#check for failures
-			failures=[r[1] for r in results if not r[0]]
-			if failures:
-				#just fail on the first error; they're probably all related!
-				raise failures[0]
-			#
-			timestamp, author, files, comments=[r[1] for r in results]
-			from buildbot.util import epoch2datetime
-			yield self.master.addChange(
-				author=author,
-				revision=i,
-				files=files,
-				comments=comments,
-				when_timestamp=epoch2datetime(timestamp),
-				branch=branch,
-				project=self.project,
-				repository=self.repo_url,
-				src='git',
-			)
+		if self.branch_to_last_rev[branch]==rev: return
+		log.msg('git poller: processing change: {} from {} branch {}'.format(rev, self.repo_url, branch))
+		dl=defer.DeferredList([
+			self._get_commit_timestamp(rev),
+			self._get_commit_author(rev),
+			self._get_commit_files(rev),
+			self._get_commit_comments(rev),
+		], consumeErrors=True)
+		results=yield dl
+		#check for failures
+		failures=[r[1] for r in results if not r[0]]
+		if failures:
+			#just fail on the first error; they're probably all related!
+			raise failures[0]
+		#
+		timestamp, author, files, comments=[r[1] for r in results]
+		from buildbot.util import epoch2datetime
+		yield self.master.addChange(
+			author=author,
+			revision=rev,
+			files=files,
+			comments=comments,
+			when_timestamp=epoch2datetime(timestamp),
+			branch=branch,
+			project=self.project,
+			repository=self.repo_url,
+			src='git',
+		)
 
 	def _vc_cmd(self, command, args=[], path='.'):
 		path=os.path.normpath(os.path.join(self.work_dir, path))
