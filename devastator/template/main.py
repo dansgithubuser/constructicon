@@ -359,7 +359,6 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 git_pollers=[ConstructiconGitPoller(
 	repo_url=i,
 	work_dir='git-poller-work-'+repo_url_to_name(i),
-	poll_interval=30,
 ) for i in all_repo_urls]
 
 class DevastatorChangeSource(changes.MaildirSource):
