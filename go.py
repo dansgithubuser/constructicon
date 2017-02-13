@@ -196,7 +196,7 @@ class Forcer:
 def m1(args):
 	cybertron_store_folder(args.cybertron_folder)
 	if not args.slave_only:
-		invoke('buildbot --verbose create-master {}'.format(megatron_master_path))
+		invoke('buildbot --verbose create-master -r {}'.format(megatron_master_path))
 		restart_args=[]
 		if args.foreground: restart_args.append('--nodaemon')
 		restart_args.append(megatron_master_path)
@@ -231,7 +231,7 @@ def d1(args):
 	if os.path.exists(tac):
 		invoke('buildslave --verbose stop {}'.format(path))
 		os.remove(tac)
-	invoke('buildslave --verbose create-slave {} {}:{} {} {}'.format(
+	invoke('buildslave --verbose create-slave -r {} {}:{} {} {}'.format(
 		path,
 		cybertron['megatron_hostname'],
 		cybertron['devastator_slave_port'],
@@ -252,7 +252,7 @@ def d0(args):
 def dr(args):
 	os.chdir(os.path.join('devastator', 'master'))
 	#create if necessary
-	if not os.path.exists('buildbot.tac'): invoke('buildbot create-master')
+	if not os.path.exists('buildbot.tac'): invoke('buildbot create-master -r')
 	#start making invocation
 	invocation=['buildbot']
 	#figure out if master is running
