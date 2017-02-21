@@ -4,7 +4,14 @@ constructicon={
 		'basic': {
 			'accept': "features['platform']=='linux'",
 			'commands': ['python go.py -h'],
-			'upload': {'readme.md': 'readme-dest.md'},
+			'upload': {
+				'readme.md': 'readme-dest.md',
+				'constructicon.py': 'constructicon-dest.py',
+				'devastator': 'devastator-dest',
+			},
+			'zip': ['constructicon-dest.py', 'devastator'],
+			'unzip': ['devastator-dest'],
+			'url': {'devastator-dest': 'devastator/template'},
 		},
 		'sleep': {
 			'commands': ['python -c "import time; time.sleep(10)"'],

@@ -74,7 +74,7 @@ def repo_url_to_name(repo_url):
 	if r.endswith('.git'): r=r[:-4]
 	return r
 
-def factory(constructicon_name, builder_name, deps, commands, upload):
+def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip, url):
 	deps=sorted(deps)
 	def work_dir_renderer(*suffix):
 		@util.renderer
@@ -100,6 +100,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 		@util.renderer
 		def f(properties): return command.format(**extract_parameters(properties.asDict()))
 		return f
+	#properties, deps, compile
 	result.addSteps(
 		[
 			common.sane_step(steps.SetProperty,
@@ -129,25 +130,66 @@ def factory(constructicon_name, builder_name, deps, commands, upload):
 			env=env,
 		) for i in range(len(commands))]
 	)
+	#upload
 	for i, j in upload.items(True):
+		zip_steps=[]
+		upload_steps=[]
+		unzip_steps=[]
+		slave_src=i
+		master_dst_extension=''
+		#zip
+		if i in zip:
+			@util.renderer
+			def command(properties, i=i):
+				return 'python -m zipfile -c {0}.zip {0}'.format(i)
+			zip_steps.append(steps.ShellCommand(
+				command=command,
+				workdir=work_dir_renderer(),
+			))
+			slave_src+='.zip'
+			master_dst_extension='.zip'
+		#unzip
+		def master_dst_function(properties, j=j, extension=master_dst_extension, suffix=None):
+			return os.path.join(
+				builder_name,
+				str(properties['buildnumber'])+'-constructicon',
+				suffix if suffix else j+master_dst_extension
+			)
 		@util.renderer
-		def master_dest(properties, j=j):
-			return os.path.join(builder_name, str(properties['buildnumber'])+'-constructicon', j)
+		def master_dst_renderer(properties, f=master_dst_function):
+			return f(properties)
+		url_trim=0
+		if j in unzip:
+			@util.renderer
+			def command(properties, master_dst_function=master_dst_function):
+				master_dst=master_dst_function(properties)
+				unzipped=os.path.split(master_dst)[0] or '.'
+				return 'python -m zipfile -e {} {}'.format(master_dst, unzipped)
+			unzip_steps.append(steps.MasterShellCommand(command=command))
+			url_trim=4
 		devastator_file_server_port=cybertron['devastator_file_server_port']
+		#upload
+		suffix=url.get(j, None)
 		@util.renderer
-		def url(properties, j=j):
+		def url_renderer(properties, j=j,
+			suffix=suffix,
+			master_dst_function=master_dst_function,
+			devastator_file_server_port=devastator_file_server_port,
+			url_trim=url_trim
+		):
 			return (
 				'http://{}:{}'.format({{{devastator_host}}}, devastator_file_server_port)
 				+
-				'/'+builder_name+'/'+str(properties['buildnumber'])+'-constructicon'+'/'+j
+				'/'+master_dst_function(properties, suffix=suffix)
 			)
-		step=steps.FileUpload(
-			slavesrc=i,
-			masterdest=master_dest,
-			url=url,
+		upload_steps.append(steps.FileUpload(
+			slavesrc=slave_src,
+			masterdest=master_dst_renderer,
+			url=url_renderer,
 			workdir=work_dir_renderer()
-		)
-		result.addStep(step)
+		))
+		#append
+		result.addSteps(zip_steps+upload_steps+unzip_steps)
 	return result
 
 def check_dict(x, key_type, value_type):
@@ -182,6 +224,9 @@ base={
 	'builder_base precommands': get_base('precommands', []),
 	'builder_base commands': get_base('commands', []),
 	'builder_base upload': get_base('upload', {}),
+	'builder_base zip': get_base('zip', []),
+	'builder_base unzip': get_base('unzip', []),
+	'builder_base url': get_base('url', {}),
 	'builder_base schedulers': get_base('schedulers', {}),
 	'schedulers': Config.create(cybertron.get('schedulers', {})),
 }
@@ -223,6 +268,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			name=name+'-force',
 			builderNames=[name],
 		))
+		log.msg('builder {}: {}'.format(name, message))
 	def full_scheduler_name(name): return constructicon_name+'-'+name
 	if not isinstance(constructicon_spec, Config):
 		error('constructicon is not a dict'); continue
@@ -290,6 +336,12 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if set(base['builder_base upload'].values())&set(upload.values()):
 			error('upload conflicts with cybertron builder_base upload'); continue
 		upload.update(base['builder_base upload'])
+		zip=builder_spec.get('zip', [])+base['builder_base zip']
+		unzip=builder_spec.get('unzip', [])+base['builder_base unzip']
+		url=builder_spec.get('url', Config.create({}))
+		if set(base['builder_base url'].values())&set(url.values()):
+			error('url conflicts with cybertron builder_base url'); continue
+		url.update(base['builder_base url'])
 		#schedulers
 		schedulers=builder_spec.get('schedulers', [])
 		if not check(schedulers, 'builder_base schedulers', [
@@ -298,7 +350,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		schedulers=set(schedulers+base['builder_base schedulers'])
 		for i in schedulers: scheduler_to_builders[full_scheduler_name(i)].append(builder_name)
 		#append
-		f=factory(constructicon_name, builder_name, deps, precommands+commands, upload)
+		f=factory(constructicon_name, builder_name, deps, precommands+commands, upload, zip, unzip, url)
 		unused=builder_spec.unused()
 		if unused:
 			error('unused configuration keys\n'+pprint.pformat(unused)); continue
