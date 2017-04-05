@@ -25,7 +25,10 @@ def sane_step(Step, **kwargs):
 
 def execute(file_name, var):
 	with open(file_name) as file: contents=file.read()
-	x={var: None}
+	x={
+		var: None,
+		'constructicon_slave_go': (lambda c: 'python '+'../'*6+'go.py '+c),
+	}
 	try: exec(contents, x)
 	except:
 		print('exception raised while executing {}'.format(file_name))
