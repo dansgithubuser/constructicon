@@ -77,6 +77,10 @@ def assert_ports_clean():
 			if not check_port_closed(j):
 				raise Exception('port {} is not closed'.format(j))
 
+def log(system, content):
+	if os.environ.get('CONSTRUCTICON_DEBUG_'+system.upper(), None)=='1':
+		print('{} {}: {}'.format(timestamp(), system, content))
+
 #=====forcer=====#
 if sys.version_info[0]==2:
 	from cookielib import CookieJar
@@ -177,9 +181,9 @@ class Forcer:
 	def json_request_generic(self, suffix):
 		import json
 		try:
-			result=retry(lambda: json.loads(urlopen('{}/json/{}'.format(
-				self.master, suffix
-			)).read().decode('utf-8')))
+			url='{}/json/{}'.format(self.master, suffix)
+			log('url', url)
+			result=retry(lambda: json.loads(urlopen(url).read().decode('utf-8')))
 		except:
 			import pdb; pdb.set_trace()
 		return result
@@ -190,6 +194,7 @@ class Forcer:
 	def _request(self, url, data):
 		headers={'Referer': '{}/builders/{}'.format(self.master, self.builder)}
 		request=Request(url, urlencode(data).encode('utf-8'), headers)
+		log('url', url)
 		return retry(lambda: self.url_opener.open(request))
 
 #=====subfunctions=====#
