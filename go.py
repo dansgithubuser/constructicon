@@ -11,6 +11,7 @@ stamp=''.join(random.choice(string.ascii_lowercase) for i in range(16))
 try: input=raw_input
 except: pass
 
+start=os.getcwd()
 folder=os.path.split(os.path.realpath(__file__))[0]
 os.chdir(folder)
 
@@ -328,6 +329,35 @@ def f(args):
 	forcer=Forcer(cybertron['megatron_hostname'], port, args.builder)
 	forcer.force(parameters=dict(zip(args.key, args.value)))
 
+def g(args):
+	constructicon=common.constructicon('.')
+	requirements=constructicon['builders'][args.builder]['get']
+	for builder, values in requirements.items():
+		#get builds from builder
+		forcer=Forcer(
+			cybertron['megatron_hostname'],
+			cybertron['devastator_master_port'],
+			builder,
+		)
+		builds=[i[1] for i in forcer.json_request('_all').items()]
+		#find build with max value
+		def calculate_value(build):
+			try: return [eval(value) for value in values]
+			except: return []
+		best_build=max(builds, key=lambda build: calculate_value(build))
+		assert calculate_value(best_build)!=[], 'no appropriate build!'
+		#download
+		downloads={}
+		for step in best_build['steps']: downloads.update(step.get('urls', {}))
+		for destination, url in downloads.items():
+			destination=os.path.join(start, '..', builder, destination)
+			folder=os.path.split(destination)[0]
+			if not os.path.exists(folder): os.makedirs(folder)
+			log('url', url)
+			with open(destination, 'w') as file:
+				print('{} --> {}'.format(url, destination))
+				file.write(retry(lambda: urlopen(url).read()))
+
 def example(args):
 	cybertron_store_folder(folder)
 	global cybertron
@@ -530,6 +560,11 @@ subparser.add_argument('--megatron', '-m', action='store_true', help='force on m
 subparser.add_argument('--builder', '-b', default='megatron-builder', help='which builder to force, default is megatron-builder')
 subparser.add_argument('--key'  , '-k', nargs='+', default=[], help='parameter keys, there should be an equal number of values')
 subparser.add_argument('--value', '-v', nargs='+', default=[], help='parameter values, there should be an equal number of keys')
+
+#-----get-----#
+subparser=subparsers.add_parser('g', help='get build results specified by builder in constructicon.py')
+subparser.set_defaults(func=g)
+subparser.add_argument('builder', help='builder to get build results for')
 
 #-----example-----#
 subparsers.add_parser('example', help='run example').set_defaults(func=example)

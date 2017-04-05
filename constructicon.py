@@ -4,6 +4,7 @@ constructicon={
 		'basic': {
 			'accept': "features['platform']=='linux'",
 			'commands': ['python go.py -h'],
+			'schedulers': ['force-7'],
 			'upload': {
 				'readme.md': 'readme-dest.md',
 				'constructicon.py': 'constructicon-dest.py',
@@ -28,11 +29,18 @@ constructicon={
 			'accept': "features['platform']=='snes' and features['memory']=='goldfish'",
 			'commands': ['python go.py -h'],
 		},
+		'get': {
+			'get': {'constructicon-basic': ["build['number']"]},
+			'commands': [
+				constructicon_slave_go('g get'),
+				'python ../constructicon-basic/constructicon-dest.py',
+			],
+		},
 	},
 	'schedulers': {
 		'force-7': {
 			'type': 'force',
-			'parameters': {'lucky_number': 7},
+			'parameters': {'lucky_number': 7, 'version': ''},
 		},
 		'time-42': {
 			'type': 'time',

@@ -349,6 +349,8 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		]): continue
 		schedulers=set(schedulers+base['builder_base schedulers'])
 		for i in schedulers: scheduler_to_builders[full_scheduler_name(i)].append(builder_name)
+		#get - ignore
+		builder_spec.get('get', Config.create({})).items(True)
 		#append
 		f=factory(constructicon_name, builder_name, deps, precommands+commands, upload, zip, unzip, url)
 		unused=builder_spec.unused()

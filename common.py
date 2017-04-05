@@ -27,7 +27,9 @@ def execute(file_name, var):
 	with open(file_name) as file: contents=file.read()
 	x={
 		var: None,
-		'constructicon_slave_go': (lambda c: 'python '+'../'*6+'go.py '+c),
+		'constructicon_slave_go': lambda c: 'python {} {}'.format(
+			os.path.join(folder, 'go.py'), c
+		),
 	}
 	try: exec(contents, x)
 	except:
