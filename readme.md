@@ -12,6 +12,13 @@ Maintainers describe the system to the megatron and devastator via cybertron.py.
 
 Users describe their constructicon via constructicon.py, which goes in the root of their repo. It should set a dictionary called constructicon, specifying how their repo should be built.
 
+devastator directory structure
+------------------------------
+- devastator/constructicons - Clones of repos created by megatron for the purpose of reading a constructicon.py config file.
+- devastator/master/<builder> - Build results.
+- devastator/slave/<slave>/constructicons/<repo> - Deps folder.
+- devastator/slave/<slave>/constructicons/<repo>/<repo> - Build folder.
+
 known issues
 ------------
 Megatrons must be run on non-Windows machines. On Windows, `buildbot stop` does not work, which means a megatron cannot restart its devastator, which defeats the entire purpose of the effort. I think the problem is with Python 2's Popen's kill. Python 3's Popen's kill does work. Therefore I'm not going to make a workaround for this, preferring to wait for Python 3 support from buildbot.
