@@ -15,9 +15,9 @@ Users describe their constructicon via constructicon.py, which goes in the root 
 devastator directory structure
 ------------------------------
 - devastator/constructicons - Clones of repos created by megatron for the purpose of reading a constructicon.py config file.
-- devastator/master/<builder> - Build results.
-- devastator/slave/<slave>/constructicons/<repo> - Deps folder.
-- devastator/slave/<slave>/constructicons/<repo>/<repo> - Build folder.
+- devastator/master/(builder) - Build results.
+- devastator/slave/(slave)/constructicons/(repo) - Deps folder.
+- devastator/slave/(slave)/constructicons/(repo)/(repo) - Build folder.
 
 known issues
 ------------
