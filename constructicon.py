@@ -31,10 +31,7 @@ constructicon={
 		},
 		'get': {
 			'get': {'constructicon-basic': ["build['number']"]},
-			'commands': [
-				constructicon_slave_go('g get'),
-				'python ../constructicon-basic/constructicon-dest.py',
-			],
+			'commands': ['python ../constructicon-basic/constructicon-dest.py'],
 		},
 	},
 	'schedulers': {

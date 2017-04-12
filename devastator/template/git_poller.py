@@ -112,7 +112,7 @@ class ConstructiconGitPoller(buildbot.changes.base.PollingChangeSource, buildbot
 		path=os.path.normpath(os.path.join(self.work_dir, path))
 		from twisted.internet import utils
 		d=utils.getProcessOutputAndValue('git', [command]+args, path=path, env=os.environ)
-		#log.msg('ConstructiconGitPoller git {} in {}'.format(' '.join([command]+args), path))
+		log.msg('ConstructiconGitPoller git {} in {}'.format(' '.join([command]+args), path))
 		def convert_nonzero_to_failure(results, command, args, path):
 			'utility to handle the result of getProcessOutputAndValue'
 			(stdout, stderr, code)=results

@@ -9,13 +9,16 @@ def repo_url_to_name(repo_url):
 	if name.endswith('.git'): name=name[:-4]
 	return name
 
-def git_state():
-	result=subprocess.check_output('git rev-parse HEAD', shell=True).strip()
-	if(
+def git_state_has_diff():
+	return (
 		subprocess.check_output('git diff'         , shell=True).strip()
 		or
 		subprocess.check_output('git diff --cached', shell=True).strip()
-	): result+=' with diff'
+	)
+
+def git_state():
+	result=subprocess.check_output('git rev-parse HEAD', shell=True).strip()
+	if(git_state_has_diff()): result+=' with diff'
 	return result
 
 def sane_step(Step, **kwargs):
@@ -23,13 +26,14 @@ def sane_step(Step, **kwargs):
 	if 'warnOnWarnings' not in kwargs: kwargs['warnOnWarnings']=True
 	return Step(**kwargs)
 
+def constructicon_slave_go(options):
+	return 'python {} {}'.format(os.path.join(*['..']*6+['go.py']), options)
+
 def execute(file_name, var):
 	with open(file_name) as file: contents=file.read()
 	x={
 		var: None,
-		'constructicon_slave_go': lambda c: 'python {} {}'.format(
-			os.path.join(folder, 'go.py'), c
-		),
+		'constructicon_slave_go': constructicon_slave_go
 	}
 	try: exec(contents, x)
 	except:

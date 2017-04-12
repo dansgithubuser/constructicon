@@ -330,8 +330,40 @@ def f(args):
 	forcer.force(parameters=dict(zip(args.key, args.value)))
 
 def g(args):
-	constructicon=common.constructicon('.')
-	requirements=constructicon['builders'][args.builder]['get']
+	print('getting')
+	print('constructicon git state is '+common.git_state())
+	#repos
+	processed=set()
+	def recurse(root, builder):
+		builder=common.constructicon(root)['builders'][builder]
+		for dep in builder['deps']:
+			os.chdir(os.path.join(start, '..'))
+			if type(dep)==str: dep={'url': dep}
+			repo_folder=dep['url'].split('/')[-1]
+			if repo_folder.endswith('.git'): repo_folder=repo_folder[:-4]
+			if repo_folder in processed: continue
+			#clone or establish sanity and fetch
+			if not os.path.exists(repo_folder):
+				invoke('git clone '+dep['url'])
+				os.chdir(repo_folder)
+			else:
+				os.chdir(repo_folder)
+				assert not common.git_state_has_diff()
+				try: invoke('git remote add origin '+dep['url'])
+				except: pass
+				invoke('git remote set-url origin '+dep['url'])
+				invoke('git fetch')
+			#get the specified state
+			invoke('git checkout '+dep.get('revision', 'origin/master'))
+			invoke('git clean -ffxd')
+			#recurse
+			processed.add(repo_folder)
+			if 'builder' in dep:
+				recurse(os.path.join(start, '..', repo_folder), dep['builder'])
+	recurse(start, args.builder)
+	#products
+	builder=common.constructicon(start)['builders'][args.builder]
+	requirements=builder.get('get', {})
 	for builder, values in requirements.items():
 		#get builds from builder
 		forcer=Forcer(
@@ -351,8 +383,8 @@ def g(args):
 		for step in best_build['steps']: downloads.update(step.get('urls', {}))
 		for destination, url in downloads.items():
 			destination=os.path.join(start, '..', builder, destination)
-			folder=os.path.split(destination)[0]
-			if not os.path.exists(folder): os.makedirs(folder)
+			x=os.path.split(destination)[0]
+			if not os.path.exists(x): os.makedirs(x)
 			log('url', url)
 			with open(destination, 'w') as file:
 				print('{} --> {}'.format(url, destination))

@@ -74,6 +74,9 @@ def repo_url_to_name(repo_url):
 	if r.endswith('.git'): r=r[:-4]
 	return r
 
+def make_full_builder_name(constructicon_name, builder_name):
+	return constructicon_name+'-'+builder_name
+
 def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip, url):
 	deps=sorted(deps)
 	def work_dir_renderer(*suffix):
@@ -100,7 +103,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 		@util.renderer
 		def f(properties): return command.format(**extract_parameters(properties.asDict()))
 		return f
-	#properties, deps, compile
+	#properties, get, compile
 	result.addSteps(
 		[
 			common.sane_step(steps.SetProperty,
@@ -119,9 +122,12 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 				value=global_git_states[constructicon_name],
 			),
 			git_step(global_repo_urls[constructicon_name], work_dir_renderer()),
+			common.sane_step(steps.Compile,
+				name='get',
+				command=common.constructicon_slave_go('g {}'.format(builder_name)),
+				workdir=work_dir_renderer(),
+			),
 		]
-		+
-		[git_step(i, work_dir_renderer('..', repo_url_to_name(i))) for i in deps]
 		+
 		[common.sane_step(steps.Compile,
 			name=commands[i][0],
@@ -151,7 +157,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 		#unzip
 		def master_dst_function(properties, j=j, extension=master_dst_extension, suffix=None):
 			return os.path.join(
-				builder_name,
+				make_full_builder_name(constructicon_name, builder_name),
 				str(properties['buildnumber'])+'-constructicon',
 				suffix if suffix else j+master_dst_extension
 			)
@@ -290,7 +296,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		#builder name
 		if type(builder_name)!=str:
 			error('builder name is not a str'); continue
-		builder_name=constructicon_name+'-'+builder_name
+		full_builder_name=make_full_builder_name(constructicon_name, builder_name)
 		#builder spec
 		if not isinstance(builder_spec, Config):
 			error('builder spec is not a dict'); continue
@@ -348,7 +354,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			[check_list, str, 'is not a list of str']
 		]): continue
 		schedulers=set(schedulers+base['builder_base schedulers'])
-		for i in schedulers: scheduler_to_builders[full_scheduler_name(i)].append(builder_name)
+		for i in schedulers: scheduler_to_builders[full_scheduler_name(i)].append(full_builder_name)
 		#get - ignore
 		builder_spec.get('get', Config.create({})).items(True)
 		#append
@@ -357,7 +363,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if unused:
 			error('unused configuration keys\n'+pprint.pformat(unused)); continue
 		all_builders.append(util.BuilderConfig(
-			name=builder_name,
+			name=full_builder_name,
 			description=global_repo_urls[constructicon_name]+' '+git_state+' on cybertron '+common.cybertron_git_state()+' in devastator '+common.git_state(),
 			slavenames=slave_names,
 			factory=f,
@@ -392,9 +398,10 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		elif spec['type']=='commit':
 			scheduler_args['change_filter']=util.ChangeFilter(branch_re=spec.get('branch_regex', '.*'))
 		#codebases
-		x=[global_repo_urls[constructicon_name]]+list(all_deps)
+		u=global_repo_urls[constructicon_name]
+		x=[u]+list(all_deps)
 		if spec['type']=='force':
-			scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=i) for i in x]
+			scheduler_args['codebases']={u: {'repository': u}}
 		else:
 			scheduler_args['codebases']={i: {'repository': i} for i in x}
 		#parameters
