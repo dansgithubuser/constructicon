@@ -2,7 +2,7 @@
 
 #=====imports=====#
 import common
-import os, pprint, re, socket, subprocess, sys, time, webbrowser
+import os, pprint, re, shutil, socket, subprocess, sys, time, webbrowser
 
 #=====globals=====#
 import random, string
@@ -331,12 +331,18 @@ def f(args):
 
 def g(args):
 	print('getting')
-	print('constructicon git state is '+common.git_state())
 	#repos
-	processed=set()
+	print('getting repos')
+	folders=os.listdir(os.path.join(start, '..'))
+	processed={os.path.split(start)[1]}
 	def recurse(root, builder):
-		builder=common.constructicon(root)['builders'][builder]
-		for dep in builder['deps']:
+		x=common.constructicon(root)['builders']
+		if builder not in x:
+			print('available builders are')
+			pprint.pprint(x.keys())
+			raise Exception('nonexistent builder')
+		builder=x[builder]
+		for dep in builder.get('deps', []):
 			os.chdir(os.path.join(start, '..'))
 			if type(dep)==str: dep={'url': dep}
 			repo_folder=dep['url'].split('/')[-1]
@@ -361,7 +367,19 @@ def g(args):
 			if 'builder' in dep:
 				recurse(os.path.join(start, '..', repo_folder), dep['builder'])
 	recurse(start, args.builder)
+	os.chdir(start)
+	for i in folders:
+		if i not in processed:
+			x=os.path.join('..', i)
+			print('removing '+x)
+			shutil.rmtree(x)
+	print('got repos')
+	for i in processed:
+		os.chdir(os.path.join(start, '..', i))
+		print('{}: {}'.format(i, common.git_state()))
+	os.chdir(start)
 	#products
+	print('getting products')
 	builder=common.constructicon(start)['builders'][args.builder]
 	requirements=builder.get('get', {})
 	for builder, values in requirements.items():
