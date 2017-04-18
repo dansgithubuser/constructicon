@@ -79,9 +79,12 @@ def make_full_builder_name(constructicon_name, builder_name):
 
 def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip, url):
 	deps=sorted(deps)
-	def work_dir_renderer(*suffix):
+	def work_dir_renderer(*suffix, **kwargs):
 		@util.renderer
 		def work_dir(properties):
+			if kwargs.get('log', False):
+				log.msg('properties are: '+pprint.pformat(properties.asDict()))
+				log.msg('sourcestamps are: '+pprint.pformat([(i.repository, i.branch, i.revision) for i in properties.getBuild().getAllSourceStamps()]))
 			sep='/'
 			if all_slaves[properties['slavename']].get('platform', 0)=='windows': sep='\\'
 			return sep.join(('..', 'constructicons', constructicon_name, constructicon_name)+suffix)
@@ -125,7 +128,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			common.sane_step(steps.Compile,
 				name='get',
 				command=common.constructicon_slave_go('g {}'.format(builder_name)),
-				workdir=work_dir_renderer(),
+				workdir=work_dir_renderer(log=True),
 			),
 		]
 		+
