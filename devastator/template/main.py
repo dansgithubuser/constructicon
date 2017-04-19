@@ -404,7 +404,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		u=global_repo_urls[constructicon_name]
 		x=[u]+list(all_deps)
 		if spec['type']=='force':
-			scheduler_args['codebases']={u: {'repository': u}}
+			scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=u)]
 		else:
 			scheduler_args['codebases']={i: {'repository': i} for i in x}
 		#parameters
