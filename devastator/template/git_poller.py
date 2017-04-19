@@ -80,7 +80,7 @@ class ConstructiconGitPoller(buildbot.changes.base.PollingChangeSource, buildbot
 	def _process_changes(self, rev, branch):
 		if branch not in self.branch_to_last_rev: return
 		if self.branch_to_last_rev[branch]==rev: return
-		log.msg('git poller: processing change: {} from {} branch {}'.format(rev, self.repo_url, branch))
+		#log.msg('git poller: processing change: {} from {} branch {}'.format(rev, self.repo_url, branch))
 		dl=defer.DeferredList([
 			self._get_commit_timestamp(rev),
 			self._get_commit_author(rev),
