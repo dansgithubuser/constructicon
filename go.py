@@ -50,13 +50,23 @@ def timestamp():
 	import datetime
 	return '{:%Y-%m-%d %H:%M:%S.%f}'.format(datetime.datetime.now())
 
-def invoke(invocation, async=False, path='.'):
+def invoke(invocation, async=False, path='.', fail_ok=False):
 	start=os.getcwd()
 	os.chdir(path)
 	print(timestamp())
-	print('invoking{}: {}'.format(' async' if async else '', invocation))
+	print('invoking{}{}: {}'.format(
+		' async' if async else '',
+		' fail-ok' if fail_ok else '',
+		invocation
+	))
 	print('in: '+os.getcwd())
-	r=(subprocess.Popen if async else subprocess.check_call)(invocation, shell=True)
+	try:
+		r=(subprocess.Popen if async else subprocess.check_call)(
+			invocation, shell=True
+		)
+	except:
+		if fail_ok: r=None
+		else: raise
 	os.chdir(start)
 	return r
 
@@ -355,12 +365,15 @@ def g(args):
 			else:
 				os.chdir(repo_folder)
 				assert not common.git_state_has_diff()
-				try: invoke('git remote add origin '+dep['url'])
-				except: pass
+				invoke('git remote add origin '+dep['url'], fail_ok=True)
 				invoke('git remote set-url origin '+dep['url'])
 				invoke('git fetch')
 			#get the specified state
-			invoke('git checkout '+dep.get('revision', 'origin/master'))
+			revision=dep.get('revision', 'master')
+			override=[i for i in args.revision if i.split(':')[0] in dep['url']]
+			if len(override): revision=override[0].split(':')[1]
+			invoke('git checkout '+revision)
+			invoke('git reset --hard @{upstream}', fail_ok=True)
 			invoke('git clean -ffxd')
 			#recurse
 			processed.add(repo_folder)
@@ -615,6 +628,7 @@ subparser.add_argument('--value', '-v', nargs='+', default=[], help='parameter v
 subparser=subparsers.add_parser('g', help='get build results specified by builder in constructicon.py')
 subparser.set_defaults(func=g)
 subparser.add_argument('builder', help='builder to get build results for')
+subparser.add_argument('--revision', '-r', nargs='+', default=[], help='repo:revision pairs to override default with')
 
 #-----example-----#
 subparsers.add_parser('example', help='run example').set_defaults(func=example)
