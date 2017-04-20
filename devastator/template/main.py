@@ -106,6 +106,18 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 		@util.renderer
 		def f(properties): return command.format(**extract_parameters(properties.asDict()))
 		return f
+	@util.renderer
+	def get_command(properties):
+		revisions=''
+		for i in properties.getBuild().getAllSourceStamps():
+			revision=None
+			if i.revision: revision=i.revision
+			elif i.branch: revision=i.branch
+			if revision: revisions+=' -r {}:{}'.format(i.repository, revision)
+		return common.constructicon_slave_go('g {}{}'.format(
+			builder_name,
+			revisions,
+		))
 	#properties, get, compile
 	result.addSteps(
 		[
@@ -127,7 +139,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			git_step(global_repo_urls[constructicon_name], work_dir_renderer()),
 			common.sane_step(steps.Compile,
 				name='get',
-				command=common.constructicon_slave_go('g {}'.format(builder_name)),
+				command=get_command,
 				workdir=work_dir_renderer(log=True),
 			),
 		]
