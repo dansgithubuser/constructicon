@@ -370,8 +370,11 @@ def g(args):
 				invoke('git fetch')
 			#get the specified state
 			revision=dep.get('revision', 'master')
-			override=[i for i in args.revision if i.split(':')[0] in dep['url']]
-			if len(override): revision=override[0].split(':')[1]
+			def split(x):
+				x=x.split(':')
+				return (':'.join(x[:-1]), x[-1])
+			override=[i for i in args.revision if split(i)[0] in dep['url']]
+			if len(override): revision=split(override[0])[1]
 			invoke('git checkout '+revision)
 			invoke('git reset --hard @{upstream}', fail_ok=True)
 			invoke('git clean -ffxd')
