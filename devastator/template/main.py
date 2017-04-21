@@ -77,7 +77,9 @@ def repo_url_to_name(repo_url):
 def make_full_builder_name(constructicon_name, builder_name):
 	return constructicon_name+'-'+builder_name
 
-def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip, url):
+resource_locks={}
+
+def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip, url, resources):
 	deps=sorted(deps)
 	def work_dir_renderer(*suffix, **kwargs):
 		@util.renderer
@@ -118,6 +120,10 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			builder_name,
 			revisions,
 		))
+	for resource in resources:
+		if resource not in resource_locks:
+			resource_locks[resource]=util.MasterLock(resource)
+	locks=[resource_locks[i].access('exclusive') for i in resources]
 	#properties, get, compile
 	result.addSteps(
 		[
@@ -149,6 +155,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			command=format(commands[i][1]),
 			workdir=work_dir_renderer(),
 			env=env,
+			locks=locks,
 		) for i in range(len(commands))]
 	)
 	#upload
@@ -249,7 +256,9 @@ base={
 	'builder_base unzip': get_base('unzip', []),
 	'builder_base url': get_base('url', {}),
 	'builder_base schedulers': get_base('schedulers', {}),
+	'builder_base resources': get_base('resources', []),
 	'schedulers': Config.create(cybertron.get('schedulers', {})),
+	'resources': Config.create(cybertron.get('resources', {})),
 }
 
 def check(spec, key, expectations):
@@ -370,10 +379,16 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		]): continue
 		schedulers=set(schedulers+base['builder_base schedulers'])
 		for i in schedulers: scheduler_to_builders[full_scheduler_name(i)].append(full_builder_name)
+		#resources
+		resources=builder_spec.get('resources', [])
+		if not check(resources, 'builder_base resources', [
+			[check_list, str, 'is not a list of str']
+		]): continue
+		resources=set(resources+base['builder_base resources'])
 		#get - ignore
 		builder_spec.get('get', Config.create({})).items(True)
 		#append
-		f=factory(constructicon_name, builder_name, deps, precommands+commands, upload, zip, unzip, url)
+		f=factory(constructicon_name, builder_name, deps, precommands+commands, upload, zip, unzip, url, resources)
 		unused=builder_spec.unused()
 		if unused:
 			error('unused configuration keys\n'+pprint.pformat(unused)); continue

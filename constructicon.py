@@ -16,9 +16,10 @@ constructicon={
 		},
 		'sleep': {
 			'commands': ['python -c "import time; time.sleep(10)"'],
+			'resources': ['cpap machine'],
 		},
 		'deps': {
-			'deps': ['https://github.com/dansgithubuser/playground'],
+			'deps': ['https://github.com/dansgithubuser/playground'],#alternatively: [{'url': 'https://github.com/dansgithubuser/playground', 'revision': 'master'}]
 			'commands': ['python ../playground/timestamp.py'],
 		},
 		'schedulers': {
@@ -28,6 +29,7 @@ constructicon={
 		'user-slave': {
 			'accept': "features['platform']=='snes' and features['memory']=='goldfish'",
 			'commands': ['python go.py -h'],
+			'resources': ['cpap machine'],
 		},
 		'get': {
 			'get': {'constructicon-basic': ["build['number']"]},
