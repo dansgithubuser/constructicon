@@ -110,6 +110,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 	def get_command(properties):
 		revisions=''
 		for i in properties.getBuild().getAllSourceStamps():
+			if not i.repository: continue
 			revision=None
 			if i.revision: revision=i.revision
 			elif i.branch: revision=i.branch
