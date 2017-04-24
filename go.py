@@ -364,7 +364,6 @@ def g(args):
 				os.chdir(repo_folder)
 			else:
 				os.chdir(repo_folder)
-				assert not common.git_state_has_diff()
 				invoke('git remote add origin '+dep['url'], fail_ok=True)
 				invoke('git remote set-url origin '+dep['url'])
 				invoke('git fetch')
@@ -378,6 +377,7 @@ def g(args):
 			invoke('git checkout '+revision)
 			invoke('git reset --hard @{upstream}', fail_ok=True)
 			invoke('git clean -ffxd')
+			assert not common.git_state_has_diff()
 			#recurse
 			processed.add(repo_folder)
 			if 'builder' in dep:
