@@ -110,11 +110,10 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 	def get_command(properties):
 		revisions=''
 		for i in properties.getBuild().getAllSourceStamps():
-			if not i.repository: continue
 			revision=None
 			if i.revision: revision=i.revision
 			elif i.branch: revision=i.branch
-			if revision: revisions+=' -r {}:{}'.format(i.repository, revision)
+			if revision: revisions+=' -r {}:{}'.format(i.codebase, revision)
 		return common.constructicon_slave_go('g {}{}'.format(
 			builder_name,
 			revisions,
