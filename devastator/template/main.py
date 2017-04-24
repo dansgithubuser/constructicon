@@ -414,10 +414,9 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		elif spec['type']=='commit':
 			scheduler_args['change_filter']=util.ChangeFilter(branch_re=spec.get('branch_regex', '.*'))
 		#codebases
-		u=global_repo_urls[constructicon_name]
-		x=[u]+list(all_deps)
+		x=[global_repo_urls[constructicon_name]]+list(all_deps)
 		if spec['type']=='force':
-			scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=u)]
+			scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=i) for i in x]
 		else:
 			scheduler_args['codebases']={i: {'repository': i} for i in x}
 		#parameters
