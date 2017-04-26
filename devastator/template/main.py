@@ -283,7 +283,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 	constructicon_spec=Config.create(constructicon_spec)
 	git_state=global_git_states[constructicon_name]
 	def error(message):
-		try: name=builder_name
+		try: name=constructicon_name+'-'+builder_name
 		except NameError: name=constructicon_name
 		global errors
 		name+='-uniquifier-{}'.format(errors)
