@@ -239,9 +239,6 @@ def check_list(x, item_type):
 
 def t_or_list_of(t, x): return type(x)==t or check_list(x, t)
 
-def intersect(dict1, dict2):
-	return set(dict1.keys())&set(dict2.keys())
-
 def get_spec(spec, key, constructicon=False):
 	if constructicon:
 		r=spec.get(key, {
@@ -353,8 +350,17 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			)); continue
 		#deps
 		deps=get_spec(builder_spec, 'deps')
-		if not check(deps, 'deps', [[check_list, str, 'is not a list of str']]): continue
+		def str_or_dict(x): return any([isinstance(x, i) for i in [str, Config]])
+		if not check(deps, 'deps', [
+			[lambda x: all([str_or_dict(i) for i in x]), 'is not a list of (str or dict)'],
+			[lambda x: all(['url' in i for i in x if isinstance(i, Config)]), 'contains a dict with no url key'],
+		]): continue
 		deps+=[i for i in get_builder_base_spec('deps') if i not in deps]
+		for i in deps:#ignore
+			if isinstance(i, Config):
+				i.get('revision', None)
+				i.get('builder', None)
+		deps=[i if type(i)==str else i['url'] for i in deps]
 		all_repo_urls.update(deps)
 		all_deps.update(deps)
 		#precommands
@@ -425,7 +431,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		[lambda x: all(['type' in j.keys() for i, j in x.items()]), 'contains a scheduler that is missing a type specification'],
 		[lambda x: all([j['type'] in ['force', 'time', 'commit'] for i, j in x.items()]), 'contains a scheduler that has an unknown type specification'],
 	], True): continue
-	if intersect(schedulers, get_cybertron_spec('schedulers')):
+	if set(schedulers.keys())&set(get_cybertron_spec('schedulers').keys()):
 		error('schedulers conflicts with cybertron schedulers'); continue
 	schedulers.update(get_cybertron_spec('schedulers'))
 	for name, spec in schedulers.items(True):
