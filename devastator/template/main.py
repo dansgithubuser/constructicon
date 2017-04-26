@@ -58,6 +58,9 @@ class Config:
 
 	def values(self): return self.dict.values()
 
+	def remove(self, key):
+		if key in self.dict: del self.dict[key]
+
 	def unused(self, prefix=[]):
 		result=[prefix+[k] for k in self.dict if k not in self.visited]
 		def recurse_list(k, v, f):
@@ -239,34 +242,45 @@ def t_or_list_of(t, x): return type(x)==t or check_list(x, t)
 def intersect(dict1, dict2):
 	return set(dict1.keys())&set(dict2.keys())
 
-def get_base(key, default):
-	result=default
-	if 'builder_base' in cybertron:
-		if key in cybertron['builder_base']:
-			result=cybertron['builder_base'][key]
-	return Config.create(result)
+def get_spec(spec, key, constructicon=False):
+	if constructicon:
+		r=spec.get(key, {
+			'schedulers': {},
+			'resources': {},
+		}[key])
+	else:
+		r=spec.get(key, {
+			'accept': 'True',
+			'deps': [],
+			'precommands': [],
+			'commands': [],
+			'upload': {},
+			'zip': [],
+			'unzip': [],
+			'url': {},
+			'schedulers': [],
+			'resources': [],
+		}[key])
+	return Config.create(r)
 
-base={
-	'builder_base accept': get_base('accept', 'True'),
-	'builder_base deps': get_base('deps', []),
-	'builder_base precommands': get_base('precommands', []),
-	'builder_base commands': get_base('commands', []),
-	'builder_base upload': get_base('upload', {}),
-	'builder_base zip': get_base('zip', []),
-	'builder_base unzip': get_base('unzip', []),
-	'builder_base url': get_base('url', {}),
-	'builder_base schedulers': get_base('schedulers', {}),
-	'builder_base resources': get_base('resources', []),
-	'schedulers': Config.create(cybertron.get('schedulers', {})),
-	'resources': Config.create(cybertron.get('resources', {})),
-}
+def get_builder_base_spec(key):
+	return get_spec(cybertron.get('builder_base', {}), key)
 
-def check(spec, key, base_key, expectations):
+def get_cybertron_spec(key):
+	return get_spec(cybertron, key, True)
+
+def check(spec, key, expectations, constructicon=False):
 	for expectation in expectations:
 		if not expectation[0](spec, *expectation[1:-1]):
-			error(key+' '+expectation[-1]); return False
-		if not expectation[0](base[base_key], *expectation[1:-1]):
-			error('cybertron '+key+' '+expectation[-1]); return False
+			error(key+' '+expectation[-1])
+			return False
+		if constructicon:
+			spec=get_spec(cybertron, key, True)
+		else:
+			spec=get_builder_base_spec(key)
+		if not expectation[0](spec, *expectation[1:-1]):
+			error('cybertron '+key+' '+expectation[-1])
+			return False
 	return True
 
 def number(list, prefix):
@@ -325,12 +339,12 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if not isinstance(builder_spec, Config):
 			error('builder spec is not a dict'); continue
 		#get what slaves this builder accepts
-		accept=builder_spec.get('accept', 'True')
-		if not check(accept, 'accept', 'builder_base accept', [[str, 'is not a str']]): continue
+		accept=get_spec(builder_spec, 'accept')
+		if not check(accept, 'accept', [[str, 'is not a str']]): continue
 		slave_names=[]
 		for slave_name, features in slaves.items():
 			try:
-				if eval(accept) and eval(base['builder_base accept']):
+				if eval(accept) and eval(get_builder_base_spec('accept')):
 					slave_names.append(slave_name)
 			except: pass
 		if not len(slave_names):
@@ -338,58 +352,58 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 				accept, pprint.pformat(slaves),
 			)); continue
 		#deps
-		deps=builder_spec.get('deps', [])
-		if not check(deps, 'deps', 'builder_base deps', [[check_list, str, 'is not a list of str']]): continue
-		deps+=[i for i in base['builder_base deps'] if i not in deps]
+		deps=get_spec(builder_spec, 'deps')
+		if not check(deps, 'deps', [[check_list, str, 'is not a list of str']]): continue
+		deps+=[i for i in get_builder_base_spec('deps') if i not in deps]
 		all_repo_urls.update(deps)
 		all_deps.update(deps)
 		#precommands
-		precommands=builder_spec.get('precommands', [])
-		if not check(precommands, 'precommands', 'builder_base precommands', [
+		precommands=get_spec(builder_spec, 'precommands')
+		if not check(precommands, 'precommands', [
 			[lambda x: type(x)==list, 'is not a list'],
 			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a precommand that is not a str or list of str'],
 		]): continue
-		precommands=number(base['builder_base precommands'], 'cybertron precommand')+number(precommands, 'precommand')
+		precommands=number(get_builder_base_spec('precommands'), 'cybertron precommand')+number(precommands, 'precommand')
 		#commands
 		if 'commands' not in builder_spec:
 			error('no commands'); continue
 		commands=builder_spec['commands']
-		if not check(commands, 'commands', 'builder_base commands', [
+		if not check(commands, 'commands', [
 			[lambda x: type(x)==list, 'is not a list'],
 			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a command that is not a str or list of str'],
 		]): continue
-		commands=number(commands, 'command')+number(base['builder_base commands'], 'cybertron command')
+		commands=number(commands, 'command')+number(get_builder_base_spec('commands'), 'cybertron command')
 		#upload
-		upload=builder_spec.get('upload', Config.create({}))
-		if not check(upload, 'upload', 'builder_base upload', [
+		upload=get_spec(builder_spec, 'upload')
+		if not check(upload, 'upload', [
 			[check_dict, str, str, 'is not a dict of str'],
 			[lambda x: all(['..' not in j for i, j in x.items()]), 'destination may not contain ..'],
 		]): continue
-		if set(base['builder_base upload'].values())&set(upload.values()):
+		if set(get_builder_base_spec('upload').values())&set(upload.values()):
 			error('upload conflicts with cybertron builder_base upload'); continue
-		upload.update(base['builder_base upload'])
-		zip=builder_spec.get('zip', [])+base['builder_base zip']
-		unzip=builder_spec.get('unzip', [])+base['builder_base unzip']
+		upload.update(get_builder_base_spec('upload'))
+		zip=builder_spec.get('zip', [])+get_builder_base_spec('zip')
+		unzip=builder_spec.get('unzip', [])+get_builder_base_spec('unzip')
 		url=builder_spec.get('url', Config.create({}))
-		if set(base['builder_base url'].values())&set(url.values()):
+		if set(get_builder_base_spec('url').values())&set(url.values()):
 			error('url conflicts with cybertron builder_base url'); continue
-		url.update(base['builder_base url'])
+		url.update(get_builder_base_spec('url'))
 		#schedulers
-		schedulers=builder_spec.get('schedulers', [])
-		if not check(schedulers, 'schedulers', 'builder_base schedulers', [
+		schedulers=get_spec(builder_spec, 'schedulers')
+		if not check(schedulers, 'schedulers', [
 			[check_list, str, 'is not a list of str']
 		]): continue
-		schedulers=set(schedulers+base['builder_base schedulers'])
+		schedulers=set(schedulers+get_builder_base_spec('schedulers'))
 		for i in schedulers: scheduler_to_builders[full_scheduler_name(i)].append(full_builder_name)
 		#resources
-		resources=builder_spec.get('resources', [])
-		if not check(resources, 'resources', 'builder_base resources', [
+		resources=get_spec(builder_spec, 'resources')
+		if not check(resources, 'resources', [
 			[check_list, str, 'is not a list of str'],
-			[lambda x: all([i in base['resources'] for i in x]), 'contains a resource not on cybertron'],
+			[lambda x: all([i in get_cybertron_spec('resources') for i in x]), 'contains a resource not on cybertron'],
 		]): continue
-		resources=set(resources+base['builder_base resources'])
+		resources=set(resources+get_builder_base_spec('resources'))
 		#get - ignore
-		builder_spec.get('get', Config.create({})).items(True)
+		builder_spec.remove('get')
 		#append
 		f=factory(constructicon_name, builder_name, deps, precommands+commands, upload, zip, unzip, url, resources)
 		unused=builder_spec.unused()
@@ -403,17 +417,17 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			locks=[slave_lock.access('exclusive')],
 		))
 	#schedulers
-	schedulers=constructicon_spec.get('schedulers', Config.create({}))
-	if not check(schedulers, 'schedulers', 'schedulers', [
+	schedulers=get_spec(constructicon_spec, 'schedulers', True)
+	if not check(schedulers, 'schedulers', [
 		[lambda x: isinstance(x, Config), 'is not a dict'],
 		[lambda x: all([type(i)==str for i in x.keys()]), "has a key that isn't a str"],
 		[lambda x: all([isinstance(j, Config) for i, j in x.items()]), "has a value that isn't a dict"],
 		[lambda x: all(['type' in j.keys() for i, j in x.items()]), 'contains a scheduler that is missing a type specification'],
 		[lambda x: all([j['type'] in ['force', 'time', 'commit'] for i, j in x.items()]), 'contains a scheduler that has an unknown type specification'],
-	]): continue
-	if intersect(schedulers, base['schedulers']):
+	], True): continue
+	if intersect(schedulers, get_cybertron_spec('schedulers')):
 		error('schedulers conflicts with cybertron schedulers'); continue
-	schedulers.update(base['schedulers'])
+	schedulers.update(get_cybertron_spec('schedulers'))
 	for name, spec in schedulers.items(True):
 		scheduler_args={}
 		#name
@@ -448,6 +462,8 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			'time': Nightly,
 			'commit': AnyBranchScheduler
 		}[spec['type']](**scheduler_args))
+	#resources - ignore
+	constructicon_spec.remove('resources')
 
 git_pollers=[ConstructiconGitPoller(
 	repo_url=i,
