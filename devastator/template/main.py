@@ -271,12 +271,14 @@ def check(spec, key, expectations, constructicon=False):
 		if not expectation[0](spec, *expectation[1:-1]):
 			error(key+' '+expectation[-1]+' -- '+pprint.pformat(spec))
 			return False
+		prefix='cybertron'
 		if constructicon:
 			spec=get_spec(cybertron, key, True)
 		else:
 			spec=get_builder_base_spec(key)
+			prefix+=' builder_base'
 		if not expectation[0](spec, *expectation[1:-1]):
-			error('cybertron '+key+' '+expectation[-1]+' -- '+pprint.pformat(spec))
+			error(prefix+' '+key+' '+expectation[-1]+' -- '+pprint.pformat(spec))
 			return False
 	return True
 
