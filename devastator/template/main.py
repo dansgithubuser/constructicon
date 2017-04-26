@@ -261,11 +261,11 @@ base={
 	'resources': Config.create(cybertron.get('resources', {})),
 }
 
-def check(spec, key, expectations):
+def check(spec, key, base_key, expectations):
 	for expectation in expectations:
 		if not expectation[0](spec, *expectation[1:-1]):
 			error(key+' '+expectation[-1]); return False
-		if not expectation[0](base[key], *expectation[1:-1]):
+		if not expectation[0](base[base_key], *expectation[1:-1]):
 			error('cybertron '+key+' '+expectation[-1]); return False
 	return True
 
@@ -326,7 +326,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			error('builder spec is not a dict'); continue
 		#get what slaves this builder accepts
 		accept=builder_spec.get('accept', 'True')
-		if not check(accept, 'builder_base accept', [[str, 'is not a str']]): continue
+		if not check(accept, 'accept', 'builder_base accept', [[str, 'is not a str']]): continue
 		slave_names=[]
 		for slave_name, features in slaves.items():
 			try:
@@ -337,13 +337,13 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			error('no matching slaves'); continue
 		#deps
 		deps=builder_spec.get('deps', [])
-		if not check(deps, 'builder_base deps', [[check_list, str, 'is not a list of str']]): continue
+		if not check(deps, 'deps', 'builder_base deps', [[check_list, str, 'is not a list of str']]): continue
 		deps+=[i for i in base['builder_base deps'] if i not in deps]
 		all_repo_urls.update(deps)
 		all_deps.update(deps)
 		#precommands
 		precommands=builder_spec.get('precommands', [])
-		if not check(precommands, 'builder_base precommands', [
+		if not check(precommands, 'precommands', 'builder_base precommands', [
 			[lambda x: type(x)==list, 'is not a list'],
 			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a precommand that is not a str or list of str'],
 		]): continue
@@ -352,14 +352,14 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if 'commands' not in builder_spec:
 			error('no commands'); continue
 		commands=builder_spec['commands']
-		if not check(commands, 'builder_base commands', [
+		if not check(commands, 'commands', 'builder_base commands', [
 			[lambda x: type(x)==list, 'is not a list'],
 			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a command that is not a str or list of str'],
 		]): continue
 		commands=number(commands, 'command')+number(base['builder_base commands'], 'cybertron command')
 		#upload
 		upload=builder_spec.get('upload', Config.create({}))
-		if not check(upload, 'builder_base upload', [
+		if not check(upload, 'upload', 'builder_base upload', [
 			[check_dict, str, str, 'is not a dict of str'],
 			[lambda x: all(['..' not in j for i, j in x.items()]), 'destination may not contain ..'],
 		]): continue
@@ -374,14 +374,14 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		url.update(base['builder_base url'])
 		#schedulers
 		schedulers=builder_spec.get('schedulers', [])
-		if not check(schedulers, 'builder_base schedulers', [
+		if not check(schedulers, 'schedulers', 'builder_base schedulers', [
 			[check_list, str, 'is not a list of str']
 		]): continue
 		schedulers=set(schedulers+base['builder_base schedulers'])
 		for i in schedulers: scheduler_to_builders[full_scheduler_name(i)].append(full_builder_name)
 		#resources
 		resources=builder_spec.get('resources', [])
-		if not check(resources, 'builder_base resources', [
+		if not check(resources, 'resources', 'builder_base resources', [
 			[check_list, str, 'is not a list of str']
 		]): continue
 		resources=set(resources+base['builder_base resources'])
@@ -401,7 +401,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		))
 	#schedulers
 	schedulers=constructicon_spec.get('schedulers', Config.create({}))
-	if not check(schedulers, 'schedulers', [
+	if not check(schedulers, 'schedulers', 'schedulers', [
 		[lambda x: isinstance(x, Config), 'is not a dict'],
 		[lambda x: all([type(i)==str for i in x.keys()]), "has a key that isn't a str"],
 		[lambda x: all([isinstance(j, Config) for i, j in x.items()]), "has a value that isn't a dict"],
