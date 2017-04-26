@@ -382,7 +382,8 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		#resources
 		resources=builder_spec.get('resources', [])
 		if not check(resources, 'resources', 'builder_base resources', [
-			[check_list, str, 'is not a list of str']
+			[check_list, str, 'is not a list of str'],
+			[lambda x: all([i in base['resources'] for i in x]), 'contains a resource not on cybertron'],
 		]): continue
 		resources=set(resources+base['builder_base resources'])
 		#get - ignore
