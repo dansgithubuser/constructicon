@@ -334,7 +334,9 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 					slave_names.append(slave_name)
 			except: pass
 		if not len(slave_names):
-			error('no matching slaves'); continue
+			error('no matching slaves -- accept="""{}"""; slaves={}'.format(
+				accept, pprint.pformat(slaves),
+			)); continue
 		#deps
 		deps=builder_spec.get('deps', [])
 		if not check(deps, 'deps', 'builder_base deps', [[check_list, str, 'is not a list of str']]): continue
