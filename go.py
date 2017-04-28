@@ -388,7 +388,8 @@ def g(args):
 		if i not in processed:
 			x=os.path.join('..', i)
 			print('removing '+x)
-			shutil.rmtree(x)
+			if os.path.isfile(x): os.remove(x)
+			else: shutil.rmtree(x)
 	print('got repos')
 	for i in processed:
 		os.chdir(os.path.join(start, '..', i))
