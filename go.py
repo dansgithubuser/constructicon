@@ -50,7 +50,7 @@ def timestamp():
 	import datetime
 	return '{:%Y-%m-%d %H:%M:%S.%f}'.format(datetime.datetime.now())
 
-def invoke(invocation, async=False, path='.', fail_ok=False):
+def invoke(invocation, async=False, path='.', fail_ok=False, capture=False):
 	start=os.getcwd()
 	os.chdir(path)
 	print(timestamp())
@@ -61,9 +61,16 @@ def invoke(invocation, async=False, path='.', fail_ok=False):
 	))
 	print('in: '+os.getcwd())
 	try:
-		r=(subprocess.Popen if async else subprocess.check_call)(
-			invocation, shell=True
-		)
+		if capture:
+			if async: raise Exception("can't respect async and capture simultaneously")
+			p=subprocess.Popen(invocation, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+			p.wait()
+			r=(p.returncode, p.stdout.read().decode('utf-8'))
+			if r[0]: raise subprocess.CalledProcessError(r[0], invocation)
+		else:
+			r=(subprocess.Popen if async else subprocess.check_call)(
+				invocation, shell=True
+			)
 	except:
 		if fail_ok: r=None
 		else: raise
@@ -364,6 +371,13 @@ def g(args):
 				os.chdir(repo_folder)
 			else:
 				os.chdir(repo_folder)
+				a=os.path.realpath(invoke('git rev-parse --show-toplevel', capture=True)[1].strip())
+				b=os.path.realpath('.')
+				if a!=b: raise Exception((
+					'repo root is unequal to current working directory\n'
+					'repo root                : "{}"\n'
+					'current working directory: "{}"\n'
+				).format(a, b))
 				invoke('git remote add origin '+dep['url'], fail_ok=True)
 				invoke('git remote set-url origin '+dep['url'])
 				invoke('git fetch')
@@ -648,5 +662,6 @@ subparser.add_argument('name')
 subparser.set_defaults(func=c)
 
 #=====main=====#
-args=parser.parse_args()
-args.func(args)
+if __name__=='__main__':#useful for debugging
+	args=parser.parse_args()
+	args.func(args)
