@@ -403,7 +403,18 @@ def g(args):
 			x=os.path.join('..', i)
 			print('removing '+x)
 			if os.path.isfile(x): os.remove(x)
-			else: shutil.rmtree(x)
+			else:
+				last=None
+				import errno, stat
+				while True:
+					try: shutil.rmtree(x)
+					except WindowsError as e:
+						if e.errno==errno.EACCES and e.winerror==5 and e.filename!=last:
+							os.chmod(e.filename, stat.S_IWUSR)
+							last=e.filename
+							continue
+						raise
+					break
 	print('got repos')
 	for i in processed:
 		os.chdir(os.path.join(start, '..', i))
