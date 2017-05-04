@@ -176,6 +176,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			zip_steps.append(steps.ShellCommand(
 				command=command,
 				workdir=work_dir_renderer(),
+				alwaysRun=True,
 			))
 			slave_src+='.zip'
 			master_dst_extension='.zip'
@@ -196,7 +197,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 				master_dst=master_dst_function(properties)
 				unzipped=os.path.split(master_dst)[0] or '.'
 				return 'python -m zipfile -e {} {}'.format(master_dst, unzipped)
-			unzip_steps.append(steps.MasterShellCommand(command=command))
+			unzip_steps.append(steps.MasterShellCommand(command=command, alwaysRun=True))
 			url_trim=4
 		devastator_file_server_port=cybertron['devastator_file_server_port']
 		#upload
@@ -217,7 +218,8 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			slavesrc=slave_src,
 			masterdest=master_dst_renderer,
 			url=url_renderer,
-			workdir=work_dir_renderer()
+			workdir=work_dir_renderer(),
+			alwaysRun=True,
 		))
 		#append
 		result.addSteps(zip_steps+upload_steps+unzip_steps)
