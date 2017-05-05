@@ -118,7 +118,8 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			revision=None
 			if i.revision: revision=i.revision
 			elif i.branch: revision=i.branch
-			if revision: revisions+=' -r {}:{}'.format(i.codebase, revision)
+			if revision: revisions+=' {}:{}'.format(i.codebase, revision)
+		if revisions: revisions=' -r'+revisions
 		return common.constructicon_slave_go('g {}{}'.format(
 			builder_name,
 			revisions,
