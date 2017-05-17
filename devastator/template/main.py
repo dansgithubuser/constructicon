@@ -161,6 +161,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			env=env,
 			locks=locks,
 			timeout=60,
+			maxTime=2*60*60,
 		) for i in range(len(commands))]
 	)
 	#upload
