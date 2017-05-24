@@ -450,6 +450,27 @@ def g(args):
 				print('{} --> {}'.format(url, destination))
 				file.write(retry(lambda: urlopen(url).read()))
 
+def help_cckl(args):
+	with open(os.path.join(folder, 'devastator', 'template', 'main.py')) as file: lines=file.readlines()
+	x=[
+		('get_cybertron_spec'    , [], "cybertron['{}']"),
+		('get_builder_base_spec' , [], "cybertron['builder_base']['{}']"),
+		('get_constructicon_spec', [], "constructicon['{}']"),
+		('get_spec'              , [], "constructicon['builders'][builder]['{}']"),
+		('get_scheduler_spec'    , [], "constructicon['schedulers'][scheduler]['{}']"),
+	]
+	for line in lines:
+		if re.search('get_.*spec', line.strip()):
+			try: key=re.search(r"get_.*spec\([^']*'([^']+)'", line).group(1)
+			except: continue
+			for function, keys, _ in x:
+				if function in line:
+					keys.append(key)
+					break
+			else: assert(False)
+	for _, keys, format in x:
+		for k in sorted(set(keys)): print(format.format(k))
+
 def example(args):
 	cybertron_store_folder(folder)
 	global cybertron
@@ -658,6 +679,9 @@ subparser=subparsers.add_parser('g', help='get build results specified by builde
 subparser.set_defaults(func=g)
 subparser.add_argument('builder', help='builder to get build results for')
 subparser.add_argument('--revision', '-r', nargs='+', default=[], help='repo:revision pairs to override default with')
+
+#-----help-----#
+subparsers.add_parser('help-cckl', help='constructicon configuration key listing').set_defaults(func=help_cckl)
 
 #-----example-----#
 subparsers.add_parser('example', help='run example').set_defaults(func=example)

@@ -247,6 +247,7 @@ def t_or_list_of(t, x): return type(x)==t or check_list(x, t)
 def get_spec(spec, key, constructicon=False):
 	if constructicon:
 		r=spec.get(key, {
+			'slaves': [],
 			'schedulers': {},
 			'resources': {},
 		}[key])
@@ -265,11 +266,26 @@ def get_spec(spec, key, constructicon=False):
 		}[key])
 	return Config.create(r)
 
+def get_constructicon_spec(spec, key):
+	return get_spec(spec, key, True)
+
 def get_builder_base_spec(key):
 	return get_spec(cybertron.get('builder_base', {}), key)
 
 def get_cybertron_spec(key):
 	return get_spec(cybertron, key, True)
+
+def get_scheduler_spec(spec, key):
+	if key in spec: return spec[key]
+	return {
+		'month': '*',
+		'day_of_month': '*',
+		'day_of_week': '*',
+		'hour': 0,
+		'minute': 0,
+		'branch_regex': '.*',
+		'parameters': Config.create({}),
+	}[key]
 
 def check(spec, key, expectations, constructicon=False):
 	for expectation in expectations:
@@ -278,7 +294,7 @@ def check(spec, key, expectations, constructicon=False):
 			return False
 		prefix='cybertron'
 		if constructicon:
-			spec=get_spec(cybertron, key, True)
+			spec=get_constructicon_spec(cybertron, key)
 		else:
 			spec=get_builder_base_spec(key)
 			prefix+=' builder_base'
@@ -321,17 +337,16 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 	if not isinstance(constructicon_spec, Config):
 		error('constructicon is not a dict'); continue
 	#slaves
-	slaves=cybertron['slaves']
-	if 'slaves' in constructicon_spec:
-		prefix=constructicon_name+'-'
-		x=constructicon_spec['slaves']
-		for i, j in x.items():
-			if not i.startswith(prefix): break
-		else: i=None
-		if i!=None:
-			error("slave {} must start with {} but doesn't".format(i, prefix)); continue
-		slaves.update(constructicon_spec['slaves'])
-		all_slaves.update(slaves)
+	slaves=get_cybertron_spec('slaves')
+	prefix=constructicon_name+'-'
+	x=get_constructicon_spec(constructicon_spec, 'slaves')
+	for i, j in x.items():
+		if not i.startswith(prefix): break
+	else: i=None
+	if i!=None:
+		error("slave {} must start with {} but doesn't".format(i, prefix)); continue
+	slaves.update(x)
+	all_slaves.update(x)
 	#builders
 	all_deps=set()
 	for builder_name, builder_spec in constructicon_spec['builders'].items(True):
@@ -339,6 +354,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if type(builder_name)!=str:
 			error('builder name is not a str'); continue
 		full_builder_name=make_full_builder_name(constructicon_name, builder_name)
+		print('processing builder '+full_builder_name)
 		#builder spec
 		if not isinstance(builder_spec, Config):
 			error('builder spec is not a dict'); continue
@@ -430,7 +446,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			locks=[slave_lock.access('exclusive')],
 		))
 	#schedulers
-	schedulers=get_spec(constructicon_spec, 'schedulers', True)
+	schedulers=get_constructicon_spec(constructicon_spec, 'schedulers')
 	if not check(schedulers, 'schedulers', [
 		[lambda x: isinstance(x, Config), 'is not a dict'],
 		[lambda x: all([type(i)==str for i in x.keys()]), "has a key that isn't a str"],
@@ -445,27 +461,28 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		scheduler_args={}
 		#name
 		scheduler_args['name']=full_scheduler_name(name)
+		print('processing scheduler '+scheduler_args['name'])
 		#builderNames
 		scheduler_args['builderNames']=scheduler_to_builders[scheduler_args['name']]
 		#trigger
-		if spec['type']=='time':
-			scheduler_args['month']=spec.get('month', '*')
-			scheduler_args['dayOfMonth']=spec.get('day-of-month', '*')
-			scheduler_args['dayOfWeek']=spec.get('day-of-week', '*')
-			scheduler_args['hour']=spec.get('hour', 0)
-			scheduler_args['minute']=spec.get('minute', 0)
+		if get_scheduler_spec(spec, 'type')=='time':
+			scheduler_args['month']=get_scheduler_spec(spec, 'month')
+			scheduler_args['dayOfMonth']=get_scheduler_spec(spec, 'day_of_month')
+			scheduler_args['dayOfWeek']=get_scheduler_spec(spec, 'day_of_week')
+			scheduler_args['hour']=get_scheduler_spec(spec, 'hour')
+			scheduler_args['minute']=get_scheduler_spec(spec, 'minute')
 			scheduler_args['branch']='master'
-		elif spec['type']=='commit':
-			scheduler_args['change_filter']=util.ChangeFilter(branch_re=spec.get('branch_regex', '.*'))
+		elif get_scheduler_spec(spec, 'type')=='commit':
+			scheduler_args['change_filter']=util.ChangeFilter(branch_re=get_scheduler_spec(spec, 'branch_regex'))
 		#codebases
 		x=[global_repo_urls[constructicon_name]]+list(all_deps)
-		if spec['type']=='force':
+		if get_scheduler_spec(spec, 'type')=='force':
 			scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=i) for i in x]
 		else:
 			scheduler_args['codebases']={i: {'repository': i} for i in x}
 		#parameters
-		parameters=spec.get('parameters', Config.create({}))
-		if spec['type']=='force':
+		parameters=get_scheduler_spec(spec, 'parameters')
+		if get_scheduler_spec(spec, 'type')=='force':
 			scheduler_args['properties']=[util.StringParameter(name=parameter_prefix+i, default=j) for i, j in parameters.items(True)]
 		else:
 			scheduler_args['properties']={parameter_prefix+i: str(j) for i, j in parameters.items(True)}
