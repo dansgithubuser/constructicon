@@ -217,6 +217,11 @@ class Forcer:
 	def json_request(self, build):
 		return self.json_request_generic('builders/{}/builds/{}'.format(self.builder, build))
 
+	def request(self, suffix):
+		url='{}/{}'.format(self.master, suffix)
+		log('url', url)
+		return retry(lambda: urlopen(url).read().decode('utf-8'))
+
 	def _request(self, url, data):
 		headers={'Referer': '{}/builders/{}'.format(self.master, self.builder)}
 		request=Request(url, urlencode(data).encode('utf-8'), headers)
@@ -609,7 +614,14 @@ def test(args):
 		basic_forcer.wait()
 		r=basic_forcer.json_request(-1)
 		#deps
-		expect(any(['crangen' in i['name'] for i in r['steps']]), 'builder_base dep', pprint.pformat(r))
+		logs_url=[i for i in r['steps'] if i['name']=='get'][0]['logs'][0][1]#this points to localhost:8080, not sure why
+		logs=basic_forcer.request(re.search('builders.*', logs_url).group(0))
+		got_repos=False
+		good=False
+		for line in logs.splitlines():
+			if line=='got repos': got_repos=True
+			if got_repos and 'crangen' in line: good=True; break
+		expect(good, 'builder_base dep', logs)
 		#precommands
 		expect(any([any(['cybertron precommand' in i['name']]) for i in r['steps']]), 'builder_base precommand', pprint.pformat(r))
 		#commands
