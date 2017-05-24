@@ -36,6 +36,14 @@ class Cybertron:
 		self._load()
 		return self.contents.items()
 
+	def descend(self, keys, default):
+		self._load()
+		x=self.contents
+		for key in keys:
+			if key in x: x=x[key]
+			else: return default
+		return x
+
 	def _load(self):
 		if not self.contents: self.contents=common.cybertron()
 
@@ -359,7 +367,7 @@ def g(args):
 			pprint.pprint(x.keys())
 			raise Exception('nonexistent builder')
 		builder=x[builder]
-		for dep in builder.get('deps', []):
+		for dep in builder.get('deps', [])+cybertron.descend(['builder_base', 'deps'], []):
 			os.chdir(os.path.join(start, '..'))
 			if type(dep)==str: dep={'url': dep}
 			repo_folder=dep['url'].split('/')[-1]
