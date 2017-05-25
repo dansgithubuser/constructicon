@@ -465,24 +465,33 @@ def g(args):
 
 def help_cckl(args):
 	with open(os.path.join(folder, 'devastator', 'template', 'main.py')) as file: lines=file.readlines()
-	x=[
-		('get_cybertron_spec'    , [], "cybertron['{}']"),
-		('get_builder_base_spec' , [], "cybertron['builder_base']['{}']"),
-		('get_constructicon_spec', [], "constructicon['{}']"),
-		('get_spec'              , [], "constructicon['builders'][builder]['{}']"),
-		('get_scheduler_spec'    , [], "constructicon['schedulers'][scheduler]['{}']"),
-	]
+	import collections
+	d=lambda: collections.defaultdict(list)
+	key_listing={
+		'get_cybertron_spec'    : (d(), "cybertron['{}']"),
+		'get_builder_base_spec' : (d(), "cybertron['builder_base']['{}']"),
+		'get_constructicon_spec': (d(), "constructicon['{}']"),
+		'get_spec'              : (d(), "constructicon['builders'][builder]['{}']"),
+		'get_scheduler_spec'    : (d(), "constructicon['schedulers'][scheduler]['{}']"),
+	}
 	for line in lines:
 		if re.search('get_.*spec', line.strip()):
 			try: key=re.search(r"get_.*spec\([^']*'([^']+)'", line).group(1)
 			except: continue
-			for function, keys, _ in x:
+			for function, (keys, _) in key_listing.items():
 				if function in line:
-					keys.append(key)
+					keys[key]
 					break
 			else: assert(False)
-	for _, keys, format in x:
-		for k in sorted(set(keys)): print(format.format(k))
+		m=re.search(r'#-\[(.*)\] ([^ ]+) (.*)', line)
+		if m:
+			contexts, key, note=m.groups()
+			contexts=contexts.split()
+			for context in contexts: key_listing[context][0][key].append(note)
+	for _, (keys, format) in sorted(key_listing.items()):
+		for key, notes in sorted(keys.items()):
+			print(format.format(key))
+			for note in notes: print('\t'+note)
 
 def example(args):
 	cybertron_store_folder(folder)

@@ -403,7 +403,7 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		]): continue
 		commands=number(commands, 'command')+number(get_builder_base_spec('commands'), 'cybertron command')
 		#upload
-		upload=get_spec(builder_spec, 'upload')
+		upload=get_spec(builder_spec, 'upload')#-[get_spec get_builder_base_spec] upload must point to a file
 		if not check(upload, 'upload', [
 			[check_dict, str, str, 'is not a dict of str'],
 			[lambda x: all(['..' not in j for i, j in x.items()]), 'destination may not contain ..'],
