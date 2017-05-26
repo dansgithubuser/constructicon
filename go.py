@@ -464,8 +464,8 @@ def g(args):
 				file.write(retry(lambda: urlopen(url).read()))
 
 def help_cckl(args):
-	with open(os.path.join(folder, 'devastator', 'template', 'main.py')) as file: lines=file.readlines()
-	import collections
+	with open(os.path.join(folder, 'devastator', 'template', 'main.py')) as file: contents=file.read()
+	import ast, collections
 	d=lambda: collections.defaultdict(list)
 	key_listing={
 		'get_cybertron_spec'    : (d(), "cybertron['{}']"),
@@ -474,7 +474,7 @@ def help_cckl(args):
 		'get_spec'              : (d(), "constructicon['builders'][builder]['{}']"),
 		'get_scheduler_spec'    : (d(), "constructicon['schedulers'][scheduler]['{}']"),
 	}
-	for line in lines:
+	for line in contents.splitlines():
 		if re.search('get_.*spec', line.strip()):
 			try: key=re.search(r"get_.*spec\([^']*'([^']+)'", line).group(1)
 			except: continue
@@ -488,10 +488,25 @@ def help_cckl(args):
 			contexts, key, note=m.groups()
 			contexts=contexts.split()
 			for context in contexts: key_listing[context][0][key].append(note)
+	def find_matching_parentheses(text):
+		n=0
+		for i in range(len(text)):
+			if   text[i]=='(':
+				n+=1
+			elif text[i]==')':
+				n-=1
+				if n==0: return i
+	errors=d()
+	for m in re.finditer(r'check\(', contents):
+		close_paren_index=find_matching_parentheses(contents[m.start():])
+		args=ast.parse(contents[m.start():m.start()+close_paren_index+1]).body[0].value.args
+		try: errors[args[1].s]+=[i.elts[1].s for i in args[2].elts]
+		except: pass
 	for _, (keys, format) in sorted(key_listing.items()):
 		for key, notes in sorted(keys.items()):
 			print(format.format(key))
 			for note in notes: print('\t'+note)
+			for error in errors.get(key, []): print('\tpotential error: '+error)
 
 def example(args):
 	cybertron_store_folder(folder)
