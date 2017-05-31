@@ -160,7 +160,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			workdir=work_dir_renderer(),
 			env=env,
 			locks=locks,
-			timeout=60,
+			timeout=5*60,
 			maxTime=2*60*60,
 		) for i in range(len(commands))]
 	)
