@@ -247,7 +247,7 @@ def t_or_list_of(t, x): return type(x)==t or check_list(x, t)
 def get_spec(spec, key, constructicon=False):
 	if constructicon:
 		r=spec.get(key, {
-			'slaves': [],
+			'slaves': {},
 			'schedulers': {},
 			'resources': {},
 		}[key])
