@@ -277,15 +277,16 @@ def get_cybertron_spec(key):
 
 def get_scheduler_spec(spec, key):
 	if key in spec: return spec[key]
-	return {
+	return Config.create({
 		'month': '*',
 		'day_of_month': '*',
 		'day_of_week': '*',
 		'hour': 0,
 		'minute': 0,
+		'branches': {},
 		'branch_regex': '.*',
-		'parameters': Config.create({}),
-	}[key]
+		'parameters': {},
+	}[key])
 
 def check(spec, key, expectations, constructicon=False):
 	for expectation in expectations:
@@ -479,7 +480,12 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		if get_scheduler_spec(spec, 'type')=='force':
 			scheduler_args['codebases']=[forcesched.CodebaseParameter(codebase=i) for i in x]
 		else:
-			scheduler_args['codebases']={i: {'repository': i} for i in x}
+			scheduler_args['codebases']={
+				i: {
+					'repository': i,
+					'branch': get_scheduler_spec(spec, 'branches').get(i, 'master'),
+				} for i in x
+			}
 		#parameters
 		parameters=get_scheduler_spec(spec, 'parameters')
 		if get_scheduler_spec(spec, 'type')=='force':
