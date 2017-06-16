@@ -17,7 +17,7 @@ def git_state_has_diff():
 	)
 
 def git_state():
-	result=subprocess.check_output('git rev-parse HEAD', shell=True).strip()
+	result=subprocess.check_output('git rev-parse HEAD', shell=True).strip().decode()
 	if(git_state_has_diff()): result+=' with diff'
 	return result
 

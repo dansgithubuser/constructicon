@@ -372,7 +372,9 @@ def g(args):
 			pprint.pprint(x.keys())
 			raise Exception('nonexistent builder')
 		builder=x[builder]
-		for dep in builder.get('deps', [])+cybertron.descend(['builder_base', 'deps'], []):
+		try: base=cybertron.descend(['builder_base', 'deps'], [])
+		except: base=[]
+		for dep in builder.get('deps', [])+base:
 			os.chdir(os.path.join(start, '..'))
 			if type(dep)==str: dep={'url': dep}
 			repo_folder=dep['url'].split('/')[-1]
@@ -409,7 +411,11 @@ def g(args):
 			processed.add(repo_folder)
 			if 'builder' in dep:
 				recurse(os.path.join(start, '..', repo_folder), dep['builder'])
-	recurse(start, args.builder)
+	if args.builder=='.':
+		for builder in common.constructicon(start)['builders']:
+			recurse(start, builder)
+	else:
+		recurse(start, args.builder)
 	os.chdir(start)
 	for i in folders:
 		if i not in processed:
@@ -435,8 +441,13 @@ def g(args):
 	os.chdir(start)
 	#products
 	print('getting products')
-	builder=common.constructicon(start)['builders'][args.builder]
-	requirements=builder.get('get', {})
+	if args.builder=='.':
+		requirements={}
+		for _, builder in common.constructicon(start)['builders'].items():
+			requirements.update(builder.get('get', {}))
+	else:
+		builder=common.constructicon(start)['builders'][args.builder]
+		requirements=builder.get('get', {})
 	for builder, values in requirements.items():
 		#get builds from builder
 		forcer=Forcer(
