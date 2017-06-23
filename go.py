@@ -365,6 +365,7 @@ def g(args):
 	print('getting repos')
 	folders=os.listdir(os.path.join(start, '..'))
 	processed={os.path.split(start)[1]}
+	expected={}
 	def recurse(root, builder):
 		x=common.constructicon(root)['builders']
 		if builder not in x:
@@ -397,16 +398,20 @@ def g(args):
 				invoke('git remote set-url origin '+dep['url'])
 				invoke('git fetch')
 			#get the specified state
-			revision=dep.get('revision', 'master')
+			revision=dep.get('revision', 'origin/master')
 			def split(x):
 				x=x.split(':')
 				return (':'.join(x[:-1]), x[-1])
 			override=[i for i in args.revision if split(i)[0] in dep['url']]
 			if len(override): revision=split(override[0])[1]
-			invoke('git checkout '+revision)
-			invoke('git reset --hard @{upstream}', fail_ok=True)
-			invoke('git clean -ffxd')
-			assert not common.git_state_has_diff()
+			if not args.dont_destroy:
+				invoke('git checkout '+revision)
+				invoke('git reset --hard HEAD', fail_ok=True)
+				invoke('git clean -ffxd')
+				assert not common.git_state_has_diff()
+			else:
+				invoke('git rebase', fail_ok=True)
+				expected[os.getcwd()]=invoke('git rev-parse {}'.format(revision), capture=True)[1].strip()
 			#recurse
 			processed.add(repo_folder)
 			if 'builder' in dep:
@@ -420,24 +425,36 @@ def g(args):
 	for i in folders:
 		if i not in processed:
 			x=os.path.join('..', i)
-			print('removing '+x)
-			if os.path.isfile(x): os.remove(x)
+			if args.dont_destroy:
+				print('extra: '+x)
 			else:
-				last=None
-				import errno, stat
-				while True:
-					try: shutil.rmtree(x)
-					except WindowsError as e:
-						if e.errno==errno.EACCES and e.winerror==5 and e.filename!=last:
-							os.chmod(e.filename, stat.S_IWUSR)
-							last=e.filename
-							continue
-						raise
-					break
+				print('removing '+x)
+				if os.path.isfile(x): os.remove(x)
+				else:
+					last=None
+					import errno, stat
+					while True:
+						try: shutil.rmtree(x)
+						except WindowsError as e:
+							if e.errno==errno.EACCES and e.winerror==5 and e.filename!=last:
+								os.chmod(e.filename, stat.S_IWUSR)
+								last=e.filename
+								continue
+							raise
+						break
 	print('got repos')
 	for i in processed:
 		os.chdir(os.path.join(start, '..', i))
-		print('{}: {}'.format(i, common.git_state()))
+		unexpected=''
+		git_state=common.git_state()
+		if args.dont_destroy:
+			if os.getcwd() in expected:
+				expected_revision=expected[os.getcwd()]
+				actual_revision=git_state.split()[0]
+				if actual_revision!=expected_revision: unexpected=', expected '+expected_revision
+			else:
+				assert os.getcwd()==start
+		print('{}: {}{}'.format(i, git_state, unexpected))
 	os.chdir(start)
 	#products
 	print('getting products')
@@ -730,9 +747,15 @@ subparser.add_argument('--key'  , '-k', nargs='+', default=[], help='parameter k
 subparser.add_argument('--value', '-v', nargs='+', default=[], help='parameter values, there should be an equal number of keys')
 
 #-----get-----#
-subparser=subparsers.add_parser('g', help='get build results specified by builder in constructicon.py')
-subparser.set_defaults(func=g)
+subparser=subparsers.add_parser('g', help='get deps and build results specified by builder in constructicon.py, use . for all builders')
+subparser.set_defaults(func=g, dont_destroy=False)
 subparser.add_argument('builder', help='builder to get build results for')
+subparser.add_argument('--revision', '-r', nargs='+', default=[], help='repo:revision pairs to override default with')
+
+#-----get-human-----#
+subparser=subparsers.add_parser('gh', help='like g, but without destroying any information')
+subparser.set_defaults(func=g, dont_destroy=True, builder='.')
+subparser.add_argument('--builder', help='builder to get build results for')
 subparser.add_argument('--revision', '-r', nargs='+', default=[], help='repo:revision pairs to override default with')
 
 #-----help-----#
