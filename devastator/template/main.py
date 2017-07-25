@@ -95,13 +95,18 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			return sep.join(('..', 'constructicons', constructicon_name, constructicon_name)+suffix)
 		return work_dir
 	result=util.BuildFactory()
-	def git_step(repo_url, work_dir):
+	def git_step(repo_url, work_dir, env):
+		@util.renderer
+		def mode(properties):
+			if 'CONSTRUCTICON_UNCLEAN' in os.environ: return 'incremental'
+			return 'full'
 		return common.sane_step(steps.Git,
 			repourl=repo_url,
 			codebase=repo_url,
 			workdir=work_dir,
-			mode='full',
+			mode=mode,
 			method='fresh',
+			env=env,
 		)
 	def extract_parameters(dict):
 		return {i[len(parameter_prefix):]: str(j[0]) for i, j in dict.items() if i.startswith(parameter_prefix)}
@@ -146,11 +151,12 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 				property='git_state',
 				value=global_git_states[constructicon_name],
 			),
-			git_step(global_repo_urls[constructicon_name], work_dir_renderer()),
+			git_step(global_repo_urls[constructicon_name], work_dir_renderer(), env),
 			common.sane_step(steps.Compile,
 				name='get',
 				command=get_command,
 				workdir=work_dir_renderer(log=True),
+				env=env,
 			),
 		]
 		+

@@ -407,7 +407,7 @@ def g(args):
 			if not args.dont_destroy:
 				invoke('git checkout '+revision)
 				invoke('git reset --hard HEAD', fail_ok=True)
-				invoke('git clean -ffxd')
+				if 'CONSTRUCTICON_UNCLEAN' not in os.environ: invoke('git clean -ffxd')
 				assert not common.git_state_has_diff()
 			else:
 				invoke('git rebase', fail_ok=True)
