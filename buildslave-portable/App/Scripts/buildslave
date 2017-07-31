@@ -1,0 +1,4 @@
+#!D:\repos\dansgithubuser\constructicon\buildslave-portable\App\python.exe
+
+from buildslave.scripts import runner
+runner.run()
