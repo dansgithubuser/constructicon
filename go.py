@@ -2,7 +2,7 @@
 
 #=====imports=====#
 import common
-import os, pprint, re, shutil, socket, subprocess, sys, time, webbrowser
+import os, platform, pprint, re, shutil, socket, subprocess, sys, time, webbrowser
 
 #=====globals=====#
 import random, string
@@ -298,7 +298,6 @@ def dr(args):
 	#restart if necessary
 	invocation.append('reconfig' if r==0 else 'restart')
 	#on Windows, work around daemon problems
-	import platform
 	if platform.system()=='Windows': invocation.append('--nodaemon')
 	#
 	invoke(' '.join(invocation))
@@ -777,4 +776,10 @@ subparser.set_defaults(func=c)
 #=====main=====#
 if __name__=='__main__':#useful for debugging
 	args=parser.parse_args()
+	if platform.system()=='Windows' and 'CONSTRUCTICON_UNPORTABLE' not in os.environ:
+		os.environ['PATH']=(
+			os.path.join(folder, 'buildslave-portable', 'App')+os.pathsep+
+			os.path.join(folder, 'buildslave-portable', 'App', 'Scripts')+os.pathsep+
+			os.environ['PATH']
+		)
 	args.func(args)
