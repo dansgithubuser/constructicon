@@ -397,12 +397,19 @@ def g(args):
 				invoke('git remote set-url origin '+dep['url'])
 				invoke('git fetch')
 			#get the specified state
-			revision=dep.get('revision', 'origin/master')
+			revision=dep.get('revision', 'master')
 			def split(x):
 				x=x.split(':')
 				return (':'.join(x[:-1]), x[-1])
 			override=[i for i in args.revision if split(i)[0] in dep['url']]
 			if len(override): revision=split(override[0])[1]
+			try:
+				if invoke('git rev-parse {}'.format(revision), capture=True)[1].strip()==revision:#raises exception if revision doesn't exist => not a commit hash
+					pass#revision is a commit hash, it's good how it is
+				else:#revision isn't a commit hash
+					raise Exception()#I want to treat this branch the same as the exception handler, but can't think of a cleaner way
+			except:
+				revision='origin/'+revision
 			if not args.dont_destroy:
 				invoke('git checkout '+revision)
 				invoke('git reset --hard HEAD', fail_ok=True)
