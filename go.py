@@ -785,8 +785,8 @@ if __name__=='__main__':#useful for debugging
 	args=parser.parse_args()
 	if platform.system()=='Windows' and 'CONSTRUCTICON_UNPORTABLE' not in os.environ:
 		os.environ['PATH']=(
+			os.environ['PATH']+os.pathsep+
 			os.path.join(folder, 'buildslave-portable', 'App')+os.pathsep+
-			os.path.join(folder, 'buildslave-portable', 'App', 'Scripts')+os.pathsep+
-			os.environ['PATH']
+			os.path.join(folder, 'buildslave-portable', 'App', 'Scripts')
 		)
 	args.func(args)
