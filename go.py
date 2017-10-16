@@ -449,7 +449,7 @@ def g(args):
 							raise
 						break
 	print('got repos')
-	for i in processed:
+	for i in sorted(list(processed)):
 		os.chdir(os.path.join(start, '..', i))
 		unexpected=''
 		git_state=common.git_state()
