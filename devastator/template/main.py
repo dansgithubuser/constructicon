@@ -158,6 +158,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 				command=get_command,
 				workdir=work_dir_renderer(log=True),
 				env=env,
+				warnOnWarnings=False,
 			),
 		]
 		+
