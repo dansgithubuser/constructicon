@@ -96,16 +96,11 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 		return work_dir
 	result=util.BuildFactory()
 	def git_step(repo_url, work_dir, env):
-		@util.renderer
-		def mode(properties):
-			if int(os.environ.get('CONSTRUCTICON_UNCLEAN', 0)): return 'incremental'
-			return 'full'
 		return common.sane_step(steps.Git,
 			repourl=repo_url,
 			codebase=repo_url,
 			workdir=work_dir,
-			mode=mode,
-			method='fresh',
+			mode='incremental',
 			env=env,
 			warnOnWarnings=False,
 		)
