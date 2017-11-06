@@ -107,6 +107,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			mode=mode,
 			method='fresh',
 			env=env,
+			warnOnWarnings=False,
 		)
 	def extract_parameters(dict):
 		return {i[len(parameter_prefix):]: str(j[0]) for i, j in dict.items() if i.startswith(parameter_prefix)}
