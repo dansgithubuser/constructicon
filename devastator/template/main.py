@@ -98,7 +98,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 	def git_step(repo_url, work_dir, env):
 		@util.renderer
 		def mode(properties):
-			if not int(os.environ.get('CONSTRUCTICON_UNCLEAN', 0)): return 'incremental'
+			if int(os.environ.get('CONSTRUCTICON_UNCLEAN', 0)): return 'incremental'
 			return 'full'
 		return common.sane_step(steps.Git,
 			repourl=repo_url,
