@@ -153,7 +153,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 				value=global_git_states[constructicon_name],
 			),
 			git_step(global_repo_urls[constructicon_name], work_dir_renderer(), env),
-			common.sane_step(steps.Compile,
+			common.sane_step(steps.ShellCommand,
 				name='get',
 				command=get_command,
 				workdir=work_dir_renderer(log=True),
