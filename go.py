@@ -363,6 +363,11 @@ def g(args):
 	#repos
 	print('getting repos')
 	folders=os.listdir(os.path.join(start, '..'))
+	def clean():
+		if not args.dont_destroy and not int(os.environ.get('CONSTRUCTICON_UNCLEAN', 0)):
+			invoke('git clean -ffxd')
+	os.chdir(start)
+	clean()
 	processed={os.path.split(start)[1]}
 	expected={}
 	def recurse(root, builder):
@@ -413,7 +418,7 @@ def g(args):
 			if not args.dont_destroy:
 				invoke('git checkout '+revision)
 				invoke('git reset --hard HEAD', fail_ok=True)
-				if not int(os.environ.get('CONSTRUCTICON_UNCLEAN', 0)): invoke('git clean -ffxd')
+				clean()
 				assert not common.git_state_has_diff()
 			else:
 				invoke('git rebase', fail_ok=True)
