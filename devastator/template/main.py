@@ -156,17 +156,28 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 				warnOnWarnings=False,
 			),
 		]
-		+
-		[common.sane_step(steps.Compile,
-			name=commands[i][0],
-			command=format(commands[i][1]),
+	)
+	for command_i in range(len(commands)):
+		kwargs={}
+		meat=commands[command_i][1]
+		if type(meat)==str:
+			command=meat
+		else:
+			command=meat['command']
+			if 'suppress_warnings' in meat:
+				kwargs['warningPattern']='.*warning[: ](?!{})'.format(
+					'|'.join(meat['suppress_warnings'])
+				)
+		result.addStep(common.sane_step(steps.Compile,
+			name=commands[command_i][0],
+			command=format(command),
 			workdir=work_dir_renderer(),
 			env=env,
 			locks=locks,
 			timeout=5*60,
 			maxTime=2*60*60,
-		) for i in range(len(commands))]
-	)
+			**kwargs
+		))
 	#upload
 	for i, j in upload.items(True):
 		zip_steps=[]
@@ -247,6 +258,8 @@ def check_list(x, item_type):
 
 def t_or_list_of(t, x): return type(x)==t or check_list(x, t)
 
+def str_or_dict(x): return any([isinstance(x, i) for i in [str, Config]])
+
 def get_spec(spec, key, constructicon=False):
 	if constructicon:
 		r=spec.get(key, {
@@ -306,6 +319,15 @@ def check(spec, key, expectations, constructicon=False):
 			error(prefix+' '+key+' '+expectation[-1]+' -- '+pprint.pformat(spec))
 			return False
 	return True
+
+def check_commands(commands, key):
+	return check(commands, key, [
+		[lambda x: type(x)==list, 'is not a list'],
+		[lambda x: all([str_or_dict(i) for i in x]), 'contains a command that is not a str or dict'],
+		[lambda x: all(['command' in i for i in x if isinstance(i, Config)]), 'contains a dict with no command key'],
+		[lambda x: all([type(i['command'])==str for i in x if isinstance(i, Config)]), 'contains a nonstring command'],
+		[lambda x: all([check_list(i.get('suppress_warnings', []), str) for i in x if isinstance(i, Config)]), "contains a suppress_warnings that isn't a list of str"],
+	])
 
 def number(list, prefix):
 	return [('{} {}'.format(prefix, i+1), v) for i, v in enumerate(list)]
@@ -377,10 +399,12 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 			)); continue
 		#deps
 		deps=get_spec(builder_spec, 'deps')
-		def str_or_dict(x): return any([isinstance(x, i) for i in [str, Config]])
 		if not check(deps, 'deps', [
 			[lambda x: all([str_or_dict(i) for i in x]), 'is not a list of (str or dict)'],
 			[lambda x: all(['url' in i for i in x if isinstance(i, Config)]), 'contains a dict with no url key'],
+			[lambda x: all([type(i['url'])==str for i in x if isinstance(i, Config)]), 'contains a nonstring url'],
+			[lambda x: all([type(i.get('revision', ''))==str for i in x if isinstance(i, Config)]), 'contains a nonstring url'],
+			[lambda x: all([type(i.get('builder', ''))==str for i in x if isinstance(i, Config)]), 'contains a nonstring url'],
 		]): continue
 		deps+=[i for i in get_builder_base_spec('deps') if i not in deps]
 		for i in deps:#ignore
@@ -392,19 +416,13 @@ for constructicon_name, constructicon_spec in global_constructicons.items():
 		all_deps.update(deps)
 		#precommands
 		precommands=get_spec(builder_spec, 'precommands')
-		if not check(precommands, 'precommands', [
-			[lambda x: type(x)==list, 'is not a list'],
-			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a precommand that is not a str or list of str'],
-		]): continue
+		if not check_commands(precommands, 'precommands'): continue
 		precommands=number(get_builder_base_spec('precommands'), 'cybertron precommand')+number(precommands, 'precommand')
 		#commands
 		if 'commands' not in builder_spec:
 			error('no commands'); continue
 		commands=builder_spec['commands']
-		if not check(commands, 'commands', [
-			[lambda x: type(x)==list, 'is not a list'],
-			[lambda x: all([t_or_list_of(str, i) for i in x]), 'contains a command that is not a str or list of str'],
-		]): continue
+		if not check_commands(commands, 'commands'): continue
 		commands=number(commands, 'command')+number(get_builder_base_spec('commands'), 'cybertron command')
 		#upload
 		upload=get_spec(builder_spec, 'upload')#-[get_spec get_builder_base_spec] upload must point to a file
