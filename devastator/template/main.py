@@ -160,6 +160,7 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 	for command_i in range(len(commands)):
 		kwargs={}
 		meat=commands[command_i][1]
+		timeout=5*60
 		if type(meat)==str:
 			command=meat
 		else:
@@ -168,13 +169,14 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 				kwargs['warningPattern']='.*warning[: ](?!{})'.format(
 					'|'.join(meat['suppress_warnings'])
 				)
+			timeout=meat.get('timeout', timeout)
 		result.addStep(common.sane_step(steps.Compile,
 			name=commands[command_i][0],
 			command=format(command),
 			workdir=work_dir_renderer(),
 			env=env,
 			locks=locks,
-			timeout=5*60,
+			timeout=timeout,
 			maxTime=2*60*60,
 			**kwargs
 		))
@@ -322,11 +324,18 @@ def check(spec, key, expectations, constructicon=False):
 
 def check_commands(commands, key):
 	return check(commands, key, [
-		[lambda x: type(x)==list, 'is not a list'],
-		[lambda x: all([str_or_dict(i) for i in x]), 'contains a command that is not a str or dict'],
-		[lambda x: all(['command' in i for i in x if isinstance(i, Config)]), 'contains a dict with no command key'],
-		[lambda x: all([type(i['command'])==str for i in x if isinstance(i, Config)]), 'contains a nonstring command'],
-		[lambda x: all([check_list(i.get('suppress_warnings', []), str) for i in x if isinstance(i, Config)]), "contains a suppress_warnings that isn't a list of str"],
+		[lambda x: type(x)==list,
+			'is not a list'],
+		[lambda x: all([ str_or_dict(i)                                   for i in x]),
+			'contains a command that is not a str or dict'],
+		[lambda x: all(['command' in i                                    for i in x if isinstance(i, Config)]),
+			'contains a dict with no command key'],
+		[lambda x: all([        type(i['command'])==str                   for i in x if isinstance(i, Config)]),
+			'contains a nonstring command'],
+		[lambda x: all([  check_list(i.get('suppress_warnings', []), str) for i in x if isinstance(i, Config)]),
+			"contains a suppress_warnings that isn't a list of str"],
+		[lambda x: all([        type(i.get('timeout', 0))==int            for i in x if isinstance(i, Config)]),
+			"contains a timeout that isn't an int"],
 	])
 
 def number(list, prefix):
