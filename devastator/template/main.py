@@ -165,10 +165,14 @@ def factory(constructicon_name, builder_name, deps, commands, upload, zip, unzip
 			command=meat
 		else:
 			command=meat['command']
+			warning_pattern='(.*warning[: ])'
+			if 'warnings' in meat:
+				warning_pattern='({})'.format('|'.join(meat['warnings']))
 			if 'suppress_warnings' in meat:
-				kwargs['warningPattern']='.*warning[: ](?!{})'.format(
+				warning_pattern=warning_pattern+'(?!{})'.format(
 					'|'.join(meat['suppress_warnings'])
 				)
+			kwargs['warningPattern']=warning_pattern
 			timeout=meat.get('timeout', timeout)
 		result.addStep(common.sane_step(steps.Compile,
 			name=commands[command_i][0],
@@ -332,8 +336,10 @@ def check_commands(commands, key):
 			'contains a dict with no command key'],
 		[lambda x: all([        type(i['command'])==str                   for i in x if isinstance(i, Config)]),
 			'contains a nonstring command'],
+		[lambda x: all([  check_list(i.get('warnings'         , []), str) for i in x if isinstance(i, Config)]),
+			"contains a warnings spec that isn't a list of str"],
 		[lambda x: all([  check_list(i.get('suppress_warnings', []), str) for i in x if isinstance(i, Config)]),
-			"contains a suppress_warnings that isn't a list of str"],
+			"contains a suppress_warnings spec that isn't a list of str"],
 		[lambda x: all([        type(i.get('timeout', 0))==int            for i in x if isinstance(i, Config)]),
 			"contains a timeout that isn't an int"],
 	])
