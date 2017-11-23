@@ -313,16 +313,18 @@ def get_scheduler_spec(spec, key):
 def check(spec, key, expectations, constructicon=False):
 	for expectation in expectations:
 		if not expectation[0](spec, *expectation[1:-1]):
-			error(key+' '+expectation[-1]+' -- '+pprint.pformat(spec))
+			e=key+' '+expectation[-1]+' -- '+pprint.pformat(spec)
+			log.msg(e)
+			error(e)
 			return False
 		prefix='cybertron'
 		if constructicon:
-			spec=get_constructicon_spec(cybertron, key)
+			general_spec=get_constructicon_spec(cybertron, key)
 		else:
-			spec=get_builder_base_spec(key)
+			general_spec=get_builder_base_spec(key)
 			prefix+=' builder_base'
-		if not expectation[0](spec, *expectation[1:-1]):
-			error(prefix+' '+key+' '+expectation[-1]+' -- '+pprint.pformat(spec))
+		if not expectation[0](general_spec, *expectation[1:-1]):
+			error(prefix+' '+key+' '+expectation[-1]+' -- '+pprint.pformat(general_spec))
 			return False
 	return True
 
